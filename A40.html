@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Helena Player - Glasovni Asistent</title>
+    <style>
+        /* Osnovni stilovi za moderan i pregledan interfejs */
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #121214;
+            color: #ffffff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .container {
+            text-align: center;
+            background: #1a1a1e;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            width: 90%;
+            max-width: 400px;
+        }
+
+        h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+            color: #ffffff;
+        }
+
+        .subtitle {
+            font-size: 14px;
+            color: #88888d;
+            margin-bottom: 40px;
+        }
+
+        /* Dugme mikrofon i efekat pulsiranja */
+        .assistant-btn {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: #2a2a30;
+            border: none;
+            cursor: pointer;
+            outline: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0 auto 30px auto;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .assistant-btn svg {
+            width: 40px;
+            height: 40px;
+            fill: #ffffff;
+            transition: fill 0.3s ease;
+        }
+
+        /* Kada je mikrofon stvarno AKTIVAN, menja boju i pulsira */
+        .assistant-btn.aktivan-mikrofon {
+            background: #ff3b30;
+            box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.7);
+            animation: pulsiranje 1.5s infinite;
+        }
+
+        .assistant-btn.aktivan-mikrofon svg {
+            fill: #ffffff;
+        }
+
+        @keyframes pulsiranje {
+            0% {
+                transform: scale(1);
+                box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.7);
+            }
+            70% {
+                transform: scale(1.05);
+                box-shadow: 0 0 0 20px rgba(255, 59, 48, 0);
+            }
+            100% {
+                transform: scale(1);
+                box-shadow: 0 0 0 0 rgba(255, 59, 48, 0);
+            }
+        }
+
+        /* Statusni tekst i konzola za komande */
+        .status-text {
+            font-size: 18px;
+            font-weight: 500;
+            margin-bottom: 15px;
+            color: #ffffff;
+            min-height: 27px;
+        }
+
+        .console-box {
+            background: #111113;
+            border-radius: 10px;
+            padding: 15px;
+            min-height: 60px;
+            font-size: 14px;
+            color: #00e676;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #222226;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>HELENA PLAYER</h1>
+        <div class="subtitle">Glasovna Sekretarica</div>
+
+        <!-- Glavno dugme sa SVG ikonicom mikrofona -->
+        <button id="dugme-sekretarica" class="assistant-btn" aria-label="Aktiviraj sekretaricu">
+            <svg viewBox="0 0 24 24">
+                <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.42 2.72 6.2 6 6.72V21h2v-3.28c3.28-.52 6-3.3 6-6.72h-1.7z"/>
+            </svg>
+        </button>
+
+        <!-- Statusni tekst koji se menja TEK kad se mikrofon upali -->
+        <div id="status-tekst" class="status-text">Dodirni mikrofon da pričaš</div>
+
+        <!-- Prozor u kom se ispisuje šta je prepoznato ili šta aplikacija radi -->
+        <div id="konzola" class="console-box">Sistem je spreman...</div>
+    </div>
+
+    <script>
+        class Sekretarica {
+            constructor(uiTextElement, uiIconElement, consoleElement) {
+                this.uiText = uiTextElement; 
+                this.uiIcon = uiIconElement;
+                this.consoleBox = consoleElement;
+                
+                this.recognition = null;
+                this.isListening = false;
+                
+                this.initSpeechRecognition();
+            }
+
+            initSpeechRecognition() {
+                // Provera i podrška za Web Speech API u browserima i WebView okruženjima
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                
+                if (!SpeechRecognition) {
+                    this.updateUI("Prepoznavanje nije podržano", false);
+                    this.updateConsole("Greška: Ovaj uređaj ili pregledač ne dozvoljava prepoznavanje glasa.");
+                    return;
+                }
+
+                this.recognition = new SpeechRecognition();
+                
+                // Podešavanja za stabilnost na mobilnim uređajima
+                this.recognition.continuous = false; 
+                this.recognition.interimResults = false; 
+                this.recognition.lang = 'sr-RS'; // Postavljeno na srpski jezik
+
+                // --- ŽIVOTNI CIKLUS MIKROFONA (EVENT LISTENERS) ---
+
+                // 1. Aktivira se isključivo KADA TELEFON STVARNO UKLJUČI MIKROFON
+                this.recognition.onstart = () => {
+                    this.isListening = true;
+                    this.updateUI("Slušam te...", true); 
+                    this.updateConsole("Mikrofon je uspešno otvoren. Govorite sada...");
+                };
+
+                // 2. Detekcija i obrada grešaka (Kada mikrofon zabode ili nema dozvole)
+                this.recognition.onerror = (event) => {
+                    this.isListening = false;
+                    
+                    if (event.error === 'not-allowed') {
+                        this.updateUI("Nema dozvole za mikrofon", false);
+                        this.updateConsole("Greška: Dozvola blokirana. Proverite podešavanja privatnosti na telefonu.");
+                    } else if (event.error === 'no-speech') {
+                        this.updateUI("Nisam te čula", false);
+                        this.updateConsole("Automatski reset: Nije detektovan govor. Pokušajte ponovo.");
+                    } else {
+                        this.updateUI("Greška", false);
+                        this.updateConsole(`Sistemska greška: ${event.error}`);
+                    }
+                };
+
+                // 3. Šta se dešava kada se proces slušanja ugasi
+                this.recognition.onend = () => {
+                    this.isListening = false;
+                    // Ako je tekst ostao na "Slušam te...", a mikrofon se ugasio, vraćamo ga na početak
+                    if (this.uiText.innerText === "Slušam te...") {
+                        this.updateUI("Dodirni mikrofon da pričaš", false);
+                    }
+                };
+
+                // 4. Obrada uspešno prepoznatog govora
+                this.recognition.onresult = (event) => {
+                    const izgovoreniTekst = event.results[0][0].transcript;
+                    this.updateUI("Obrada...", false);
+                    this.updateConsole(`Prepoznato: "${izgovoreniTekst}"`);
+                    
+                    // Slanje teksta na analizu za izvršavanje komandi
+                    this.izvrsiKomandu(izgovoreniTekst.toLowerCase());
+                };
+            }
+
+            // Funkcija koja reaguje na pritisak dugmeta (Sluša / Resetuje)
+            aktivirajOkiđać() {
+                if (!this.recognition) {
+                    this.initSpeechRecognition();
+                    if (!this.recognition) return;
+                }
+
+                if (this.isListening) {
+                    // Ako je sekretarica zaglavljena ili već sluša, klik je bezbedno gasi i resetuje
+                    this.recognition.stop();
+                    this.updateUI("Dodirni mikrofon da pričaš", false);
+                    this.updateConsole("Slušanje je ručno prekinuto.");
+                } else {
+                    try {
+                        this.updateUI("Pokrećem mikrofon...", false);
+                        this.recognition.start();
+                    } catch (error) {
+                        // Ako sistem misli da već radi, gasimo ga na silu i palimo ponovo brzo
+                        this.recognition.stop();
+                        setTimeout(() => {
+                            try { this.recognition.start(); } catch(e) {}
+                        }, 300);
+                    }
+                }
+            }
+
+            // Ažuriranje glavnih vizuelnih stanja u aplikaciji
+            updateUI(tekst, aktivno) {
+                if (this.uiText) this.uiText.innerText = tekst;
+                
+                if (this.uiIcon) {
+                    if (aktivno) {
+                        this.uiIcon.classList.add("aktivan-mikrofon");
+                    } else {
+                        this.uiIcon.classList.remove("aktivan-mikrofon");
+                    }
+                }
+            }
+
+            // Upisivanje stanja u konzolu na dnu ekrana
+            updateConsole(poruka) {
+                if (this.consoleBox) this.consoleBox.innerText = poruka;
+            }
+
+            // Sistem komandi za tvoju aplikaciju Helena Player
+            izvrsiKomandu(komanda) {
+                // Ovde se prepoznaju ključne reči na srpskom
+                if (komanda.includes("pusti") || komanda.includes("igraj") || komanda.includes("start")) {
+                    this.updateConsole("Komanda: Pokrećem reprodukciju (Play)");
+                    // Ovde ide tvoj kod za puštanje muzike/videa
+                } 
+                else if (komanda.includes("pauza") || komanda.includes("stani") || komanda.includes("pauziraj")) {
+                    this.updateConsole("Komanda: Muzika pauzirana (Pause)");
+                    // Ovde ide tvoj kod za pauzu
+                } 
+                else if (komanda.includes("sledeća") || komanda.includes("dalje")) {
+                    this.updateConsole("Komanda: Prebacujem na sledeću pesmu");
+                } 
+                else if (komanda.includes("prethodna") || komanda.includes("nazad")) {
+                    this.updateConsole("Komanda: Vraćam na prethodnu pesmu");
+                } 
+                else {
+                    this.updateConsole(`Nepoznata komanda: "${komanda}". Pokušaj ponovo.`);
+                }
+            }
+        }
+
+        // Pokretanje koda nakon što se ceo interfejs učita
+        document.addEventListener("DOMContentLoaded", () => {
+            const statusTekst = document.getElementById("status-tekst");
+            const dugmeMika = document.getElementById("dugme-sekretarica");
+            const konzolaDole = document.getElementById("konzola");
+
+            // Kreiranje objekta sekretarice
+            const sekretarica = new Sekretarica(statusTekst, dugmeMika, konzolaDole);
+
+            // Povezivanje klika (ili dodira na ekranu telefona) sa funkcijom
+            dugmeMika.addEventListener("click", () => {
+                sekretarica.aktivirajOkiđać();
+            });
+        });
+    </script>
+</body>
+</html>
