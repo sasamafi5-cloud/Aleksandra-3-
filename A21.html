@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GroceryAI - Kontrola</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: #000000;
+            background-image: radial-gradient(circle at 50% 20%, #111827 0%, #000000 100%);
+            color: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            overflow-x: hidden;
+        }
+
+        .phone-container {
+            width: 100%;
+            max-width: 480px;
+            background: #0a0a0c;
+            position: relative;
+            min-height: 100vh;
+            padding: 20px 16px 100px 16px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Gornji Panel - Kontrola */
+        .header-control {
+            background: rgba(25, 25, 30, 0.65);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 28px;
+            padding: 24px;
+            width: 55%;
+            min-height: 160px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            box-shadow: inset 0 1px 1px rgba(255,255,255,0.1), 0 10px 30px rgba(0,0,0,0.5);
+            margin-bottom: 25px;
+        }
+
+        .header-control .sub-title {
+            font-size: 13px;
+            color: #8e8e93;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+        }
+
+        .header-control h1 {
+            font-size: 24px;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 14px;
+            line-height: 1.2;
+        }
+
+        .info-row {
+            font-size: 13px;
+            color: #aeaeaf;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        .info-row strong {
+            color: #00d4ff;
+        }
+
+        /* 3D Avatar koji leti i pomera se */
+        .avatar-wrapper {
+            position: absolute;
+            top: 20px;
+            right: 16px;
+            width: 160px;
+            height: 160px;
+            z-index: 999;
+            cursor: move;
+            touch-action: none;
+            user-select: none;
+        }
+
+        .avatar-wrapper img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            pointer-events: none;
+            filter: drop-shadow(0 15px 20px rgba(0,0,0,0.7));
+            animation: floatAnim 4s ease-in-out infinite;
+        }
+
+        @keyframes floatAnim {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-8px); }
+            100% { transform: translateY(0px); }
+        }
+
+        /* Mreža artikala */
+        .products-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 14px;
+            width: 100%;
+        }
+
+        /* Kartice - Velike sa X dugmetom */
+        .product-card {
+            background: rgba(25, 25, 30, 0.6);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 28px;
+            padding: 20px 12px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            min-height: 190px;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 12px;
+            right: 14px;
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 14px;
+            cursor: pointer;
+            z-index: 10;
+        }
+
+        /* Ogromna hrana sa prigušenim sjajnim krugom u pozadini */
+        .circle-glow {
+            position: absolute;
+            top: 40%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80px;
+            height: 80px;
+            background: radial-gradient(circle, rgba(0, 212, 255, 0.18) 0%, rgba(0,0,0,0) 70%);
+            border-radius: 50%;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .food-img {
+            width: 85%;
+            height: 95px;
+            object-fit: contain;
+            z-index: 2;
+            filter: drop-shadow(0 10px 15px rgba(0,0,0,0.6));
+            margin-bottom: 10px;
+            transition: transform 0.2s ease;
+        }
+
+        .product-card:hover .food-img {
+            transform: scale(1.08);
+        }
+
+        .food-name {
+            font-size: 15px;
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 4px;
+            z-index: 2;
+        }
+
+        .food-price {
+            font-size: 13px;
+            font-weight: 700;
+            color: #00d4ff;
+            z-index: 2;
+        }
+
+        /* Donji Tab Bar sa velikim mikrofonom u sredini */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100%;
+            max-width: 480px;
+            height: 80px;
+            background: rgba(10, 10, 12, 0.85);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding: 0 10px;
+            z-index: 99999;
+        }
+
+        .nav-item {
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .nav-item img {
+            width: 26px;
+            height: 26px;
+            opacity: 0.7;
+        }
+
+        .nav-item .badge {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            background: #00d4ff;
+            color: #000;
+            font-size: 10px;
+            font-weight: bold;
+            border-radius: 50%;
+            padding: 2px 6px;
+        }
+
+        /* Centralno dugme za mikrofon */
+        .mic-wrapper {
+            position: relative;
+            top: -18px;
+            z-index: 100000;
+        }
+
+        .mic-btn {
+            width: 70px;
+            height: 70px;
+            background: linear-gradient(135deg, #4d76ff 0%, #00d4ff 100%);
+            border-radius: 50%;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 0 25px rgba(0, 212, 255, 0.45);
+        }
+
+        .mic-btn img {
+            width: 32px;
+            height: 32px;
+            filter: brightness(0) invert(1);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="phone-container">
+        
+        <div class="header-control">
+            <div class="sub-title">GroceryAI • Kontrola</div>
+            <h1>Zdravo,<br>Saša!</h1>
+            <div class="info-row">U KORPI: <strong id="status-korpa">0 artikala | 0 RSD</strong></div>
+            <div class="info-row">BUDŽET: <span id="trenutni-budzet">0</span> / 30000 RSD</div>
+        </div>
+
+        <div id="avatar-container" class="avatar-wrapper">
+            <img src="avatar.png" alt="AI Sekretarica" id="avatar-img">
+        </div>
+
+        <div class="products-grid" id="main-grid">
+            </div>
+
+    </div>
+
+    <div class="bottom-nav">
+        <div class="nav-item">
+            <span style="font-size: 24px;">🏠</span>
+        </div>
+        <div class="nav-item">
+            <span style="font-size: 24px;">🔍</span>
+        </div>
+        
+        <div class="mic-wrapper">
+            <button class="mic-btn" onclick="pokreniGlas()"></button>
+        </div>
+        
+        <div class="nav-item">
+            <span style="font-size: 24px;">🛒</span>
+            <div class="badge" id="badge-count" style="display: none;">0</div>
+        </div>
+        <div class="nav-item">
+            <span style="font-size: 24px;">👤</span>
+        </div>
+    </div>
+
+    <script>
+        // Baza podataka (Proširiva do 200 artikala sa tačnim cenama)
+        const bazaProizvoda = [
+            { id: "mleko", naziv: "Mleko", cena: 98, jedinica: "L", slika: "mleko.png" },
+            { id: "banane", naziv: "Banane", cena: 95, jedinica: "kg", slika: "banane.png" },
+            { id: "jaja", naziv: "Jaja", cena: 20, jedinica: "kom", slika: "jaja.png" },
+            { id: "krompir", naziv: "Krompir", cena: 60, jedinica: "kg", slika: "krompir.png" },
+            { id: "secer", naziv: "Šećer", cena: 95, jedinica: "kg", slika: "secer.png" },
+            { id: "keks", naziv: "Keks", cena: 89, jedinica: "kom", slika: "keks.png" },
+            { id: "maslac", naziv: "Maslac (Buter)", cena: 350, jedinica: "kom", slika: "maslac.png" },
+            { id: "feta", naziv: "Feta sir", cena: 420, jedinica: "kom", slika: "feta.png" }
+        ];
+
+        let korpa = [];
+
+        // Generisanje kartica na ekranu
+        function ucitajProizvode() {
+            const grid = document.getElementById('main-grid');
+            grid.innerHTML = bazaProizvoda.map(p => `
+                <div class="product-card" onclick="dodajUKorpu('${p.id}', 1)">
+                    <div class="close-btn">×</div>
+                    <div class="circle-glow"></div>
+                    <img src="${p.slika}" class="food-img" onerror="this.src='https://via.placeholder.com/110?text=${p.naziv}'">
+                    <div>
+                        <div class="food-name">${p.naziv}</div>
+                        <div class="food-price">${p.cena} RSD / ${p.jedinica}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Slobodno pomeranje avatara prstom po celom ekranu (Drag and Drop)
+        const avatar = document.getElementById('avatar-container');
+        let isDragging = false;
+        let startX, startY;
+
+        avatar.addEventListener('touchstart', (e) => {
+            isDragging = true;
+            const touch = e.touches[0];
+            startX = touch.clientX - avatar.offsetLeft;
+            startY = touch.clientY - avatar.offsetTop;
+            avatar.querySelector('img').style.animation = 'none'; // Stopira lebdenje dok vučeš
+        });
+
+        avatar.addEventListener('touchmove', (e) => {
+            if (!isDragging) return;
+            e.preventDefault();
+            const touch = e.touches[0];
+            let newX = touch.clientX - startX;
+            let newY = touch.clientY - startY;
+
+            // Granice ekrana da avatar ne pobegne van vidokruga
+            const maxX = window.innerWidth - avatar.offsetWidth;
+            const maxY = window.innerHeight - avatar.offsetHeight;
+            newX = Math.max(0, Math.min(newX, maxX));
+            newY = Math.max(0, Math.min(newY, maxY));
+
+            avatar.style.left = `${newX}px`;
+            avatar.style.top = `${newY}px`;
+        });
+
+        avatar.addEventListener('touchend', () => {
+            isDragging = false;
+            avatar.querySelector('img').style.animation = 'floatAnim 4s ease-in-out infinite';
+        });
+
+        // Logika korpe i sabiranja cena
+        function dodajUKorpu(proizvodId, kolicina) {
+            const artikal = bazaProizvoda.find(p => p.id ===...proizvodId);
+            if (!artikal) return;
+
+            const postojeci = korpa.find(item => item.proizvod.id === proizvodId);
+
+            if (postojeci) {
+                postojeci.kolicina += kolicina;
+                postojeci.ukupnaCena = postojeci.kolicina * artikal.cena;
+            } else {
+                korpa.push({
+                    proizvod: artikal,
+                    kolicina: kolicina,
+                    ukupnaCena: kolicina * artikal.cena
+                });
+            }
+            osveziPanele();
+        }
+
+        function osveziPanele() {
+            let ukupnoNovca = 0;
+            let ukupnoStavki = korpa.length;
+
+            korpa.forEach(item => {
+                ukupnoNovca += item.ukupnaCena;
+            });
+
+            // Osvežavanje gornjeg panela
+            document.getElementById('status-korpa').innerText = `${ukupnoStavki} artikala | ${ukupnoNovca} RSD`;
+            document.getElementById('trenutni-budzet').innerText = ukupnoNovca;
+
+            // Osvežavanje bedža na ikonici korpe dole
+            const badge = document.getElementById('badge-count');
+            if (ukupnoStavki > 0) {
+                badge.style.display = 'block';
+                badge.innerText = ukupnoStavki;
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+
+        // Popravka za glas sekretarice (Čita i količinu ispred reči pomoću RegEx-a)
+        function obradiGlasovniUnos(tekst) {
+            const ciscenje = tekst.toLowerCase().trim();
+            let izbrojanaKolicina = 1;
+
+            // Izvlači cifru pre naziva proizvoda (podržava npr "5 kg", "10 kom", "3")
+            const proveraBroja = ciscenje.match(/(\d+)\s*(kg|l|kom|g)?/);
+            if (proveraBroja) {
+                izbrojanaKolicina = parseInt(proveraBroja[1], 10);
+            }
+
+            let nadjenProizvod = null;
+            for (let p of bazaProizvoda) {
+                if (ciscenje.includes(p.id) || ciscenje.includes(p.naziv.toLowerCase())) {
+                    nadjenProizvod = p;
+                    break;
+                }
+            }
+
+            if (nadjenProizvod) {
+                dodajUKorpu(nadjenProizvod.id, izbrojanaKolicina);
+                alert(`Sekretarica uslužila: Ubacila ${izbrojanaKolicina} ${nadjenProizvod.jedinica} (${nadjenProizvod.naziv})`);
+            } else {
+                alert("Sekretarica: Nažalost, taj proizvod nemamo u bazi.");
+            }
+        }
+
+        function pokreniGlas() {
+            const simulacija = prompt("Unesite glasovnu komandu (npr. '5 kg krompira' ili 'keks'):");
+            if (simulacija) {
+                obradiGlasovniUnos(simulacija);
+            }
+        }
+
+        // Inicijalno pokretanje pri učitavanju stranice
+        window.onload = ucitajProizvode;
+    </script>
+</body>
+</html>
