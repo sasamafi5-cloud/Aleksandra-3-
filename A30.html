@@ -1,0 +1,1302 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Helena Player & GroceryAI</title>
+  <script src="https://cdn.jsdelivr.net/npm/mathjs@11.8.0/lib/browser/math.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* --- SKEUOMORPHIC & NEUMORPHIC BASE STYLES --- */
+    :root {
+      --neon-hue: 310;
+      --neon-color: hsl(var(--neon-hue), 100%, 60%);
+      --text-color: #ffffff;
+      --component-bg: rgba(28, 28, 30, 0.85);
+      --component-border: rgba(255, 255, 255, 0.1);
+      --shadow-intensity: 1;
+      --ui-scale: 1;
+    }
+
+    body {
+      background-color: #000000;
+      color: var(--text-color);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      overflow-x: hidden;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    /* Glossy 3D Plastic Textures (Nivo 0 do Nivo 4) */
+    .skeuo-panel {
+      background: linear-gradient(135deg, rgba(40,40,44,0.9) 0%, rgba(20,20,22,0.9) 100%);
+      border: 1px solid var(--component-border);
+      box-shadow: 
+        inset 0 2px 4px rgba(255,255,255,0.15),
+        0 4px 10px rgba(0,0,0,calc(0.5 * var(--shadow-intensity))),
+        0 15px 25px rgba(0,0,0,calc(0.3 * var(--shadow-intensity)));
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-radius: 24px;
+    }
+
+    .skeuo-btn {
+      background: linear-gradient(180deg, rgba(60,60,65,0.9) 0%, rgba(30,30,33,0.9) 100%);
+      border: 1px solid rgba(255,255,255,0.1);
+      box-shadow: 
+        inset 0 1px 2px rgba(255,255,255,0.2),
+        0 2px 4px rgba(0,0,0,calc(0.4 * var(--shadow-intensity)));
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .skeuo-btn:active {
+      background: linear-gradient(180deg, rgba(25,25,28,0.9) 0%, rgba(45,45,50,0.9) 100%);
+      box-shadow: 
+        inset 0 3px 5px rgba(0,0,0,0.7),
+        0 1px 1px rgba(255,255,255,0.1);
+      transform: scale(0.96);
+    }
+
+    .skeuo-inset {
+      background: linear-gradient(180deg, rgba(15,15,17,0.9) 0%, rgba(25,25,28,0.9) 100%);
+      border: 1px solid rgba(0,0,0,0.5);
+      box-shadow: 
+        inset 0 4px 8px rgba(0,0,0,0.8),
+        0 1px 2px rgba(255,255,255,0.08);
+    }
+
+    /* Neon Glow Highlights */
+    .neon-text {
+      color: var(--neon-color);
+      text-shadow: 0 0 10px var(--neon-color), 0 0 20px var(--neon-color);
+    }
+
+    .neon-border {
+      border-color: var(--neon-color);
+      box-shadow: 0 0 15px var(--neon-color), inset 0 0 8px var(--neon-color);
+    }
+
+    /* Tab bar hidden state */
+    .app-tab {
+      display: none;
+    }
+    .app-tab.active {
+      display: block;
+    }
+
+    /* Custom custom ranges */
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      background: #111;
+      height: 8px;
+      border-radius: 4px;
+      outline: none;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: var(--neon-color);
+      box-shadow: 0 0 10px var(--neon-color);
+      cursor: pointer;
+    }
+
+    /* Grid configuration animation fallback */
+    .grid-container {
+      transition: grid-template-columns 0.3s ease;
+    }
+  </style>
+</head>
+<body class="p-3 pb-24 min-h-screen relative">
+
+  <!-- POZADINSKA SLIKA IZ LOKALNE MEMORIJE -->
+  <img id="bgImageElement" class="fixed inset-0 w-full h-full object-cover z-[-2] hidden opacity-40 pointer-events-none" src="" alt="Background">
+
+  <!-- ================= MASTER HEADER / DUBINA ================= -->
+  <header class="skeuo-panel p-4 mb-4 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="w-12 h-12 skeuo-inset rounded-full flex items-center justify-center font-bold text-xl neon-text">H</div>
+      <div>
+        <h1 class="text-lg font-bold tracking-tight">Helena Player</h1>
+        <p class="text-xs text-gray-400">GroceryAI inteligentni asistent</p>
+      </div>
+    </div>
+    <div class="skeuo-inset px-4 py-2 rounded-xl text-right">
+      <span class="text-xs text-gray-400 block uppercase font-semibold">Mesečni Limit</span>
+      <span id="budgetDisplay" class="font-mono text-base neon-text">0.00 RSD</span>
+    </div>
+  </header>
+
+  <!-- ================= GLAVNI SADRŽAJ (TABOVI) ================= -->
+  <main class="space-y-4">
+    
+    <!-- TAB 1: POČETNA / BRZI PROIZVODI -->
+    <section id="tab-home" class="app-tab active space-y-4">
+      <div class="skeuo-panel p-4">
+        <h2 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">Prečice sa ekrana (Česta kupovina)</h2>
+        <div id="frequentGrid" class="grid-container grid grid-cols-3 gap-3">
+          <!-- Dinamički generisano -->
+        </div>
+      </div>
+
+      <!-- HELENA PLAYER MULTIMEDIJALNI MODUL -->
+      <div class="skeuo-panel p-4 space-y-4">
+        <h2 class="text-sm font-bold text-gray-400 uppercase tracking-wider">Helena Audio & Video Deck</h2>
+        
+        <!-- Centralni video / audio element koji je statičan i oštar -->
+        <div class="w-full h-44 skeuo-inset rounded-2xl overflow-hidden relative flex items-center justify-center bg-black">
+          <video id="mainVideoPlayer" class="w-full h-full object-cover hidden" preload="metadata"></video>
+          <div id="audioVisualizerPlaceholder" class="absolute inset-0 flex flex-col items-center justify-center p-4 text-center">
+            <span class="text-4xl mb-2">🎵</span>
+            <p id="nowPlayingTitle" class="text-sm font-semibold truncate max-w-xs">Nijedna numera nije izabrana</p>
+            <p id="nowPlayingArtist" class="text-xs text-gray-500">Izaberi pesmu iz biblioteke</p>
+          </div>
+          <!-- Equalizer vizuelni stubovi -->
+          <div id="eqVisualizerContainer" class="absolute bottom-2 left-4 right-4 h-8 flex items-end justify-between gap-1 opacity-60">
+            <div class="w-full bg-current neon-text h-1"></div>
+            <div class="w-full bg-current neon-text h-3"></div>
+            <div class="w-full bg-current neon-text h-2"></div>
+            <div class="w-full bg-current neon-text h-5"></div>
+            <div class="w-full bg-current neon-text h-1"></div>
+          </div>
+        </div>
+
+        <!-- Kontrole Plejera -->
+        <div class="flex items-center justify-center gap-4">
+          <button onclick="prevTrack()" class="skeuo-btn w-12 h-12 rounded-full flex items-center justify-center text-lg">⏮</button>
+          <button id="playPauseBtn" onclick="togglePlayPause()" class="skeuo-btn w-14 h-14 rounded-full flex items-center justify-center text-xl neon-border">▶</button>
+          <button onclick="nextTrack()" class="skeuo-btn w-12 h-12 rounded-full flex items-center justify-center text-lg">⏭</button>
+          <button id="eqToggleBtn" onclick="toggleEqualizer()" class="skeuo-btn px-3 h-12 rounded-xl text-xs font-bold text-gray-400">EQ OFF</button>
+        </div>
+
+        <!-- Bas Boost i Jačina Zvuka -->
+        <div class="grid grid-cols-2 gap-4 pt-2">
+          <div class="space-y-1">
+            <label class="text-xs text-gray-400 block flex justify-between"><span>Bass Boost</span><span id="bassBoostVal">0%</span></label>
+            <input type="range" id="bassBoostSlider" min="0" max="100" value="0" class="w-full" oninput="adjustBassBoost(this.value)">
+          </div>
+          <div class="space-y-1">
+            <label class="text-xs text-gray-400 block flex justify-between"><span>Jačina zvuka</span><span id="volumeVal">80%</span></label>
+            <input type="range" id="volumeSlider" min="0" max="100" value="80" class="w-full" oninput="adjustVolume(this.value)">
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: KATALOG / PRETRAGA -->
+    <section id="tab-search" class="app-tab space-y-4">
+      <div class="skeuo-panel p-3">
+        <div class="skeuo-inset flex items-center px-3 py-2 rounded-xl">
+          <span class="mr-2 text-gray-500">🔍</span>
+          <input type="text" id="searchInput" placeholder="Pretraži preko 200 artikala..." class="bg-transparent border-none outline-none text-white w-full text-sm" oninput="performSearch(this.value)">
+        </div>
+      </div>
+      <div class="skeuo-panel p-4">
+        <div class="flex justify-between items-center mb-3">
+          <h2 class="text-sm font-bold text-gray-400 uppercase tracking-wider">Rezultati pretrage</h2>
+          <button onclick="openAddModal()" class="skeuo-btn px-3 py-1 rounded-lg text-xs font-bold text-white">+ Dodaj Novi</button>
+        </div>
+        <div id="searchResults" class="space-y-2 max-h-[50vh] overflow-y-auto pr-1">
+          <!-- Rezultati pretrage -->
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: KORPA I KALKULACIJA -->
+    <section id="tab-cart" class="app-tab space-y-4">
+      <div class="skeuo-panel p-4 space-y-3">
+        <h2 class="text-sm font-bold text-gray-400 uppercase tracking-wider flex justify-between">
+          <span>Stavke u korpi</span>
+          <span id="cartCountBadge" class="neon-text font-mono">0 artikala</span>
+        </h2>
+        <div id="cartItemsList" class="space-y-2 max-h-[40vh] overflow-y-auto pr-1">
+          <!-- Stavke -->
+        </div>
+        <div class="skeuo-inset p-3 rounded-xl space-y-1">
+          <div class="flex justify-between text-xs text-gray-400"><span>Međuzbir:</span><span id="subtotalPrice">0.00 RSD</span></div>
+          <div class="flex justify-between text-sm font-bold border-t border-gray-800 pt-1"><span>UKUPNO:</span><span id="totalPrice" class="neon-text">0.00 RSD</span></div>
+        </div>
+        <button onclick="checkout()" class="w-full skeuo-btn py-3 rounded-xl font-bold neon-border text-center block text-sm tracking-wider uppercase">Završi Kupovinu</button>
+      </div>
+    </section>
+
+    <!-- TAB 4: PODEŠAVANJA APLIKACIJE -->
+    <section id="tab-profile" class="app-tab space-y-4">
+      <!-- AI & Groq konfiguracija -->
+      <div class="skeuo-panel p-4 space-y-3">
+        <h2 class="text-sm font-bold text-gray-400 uppercase tracking-wider">Groq AI Inteligentni Motor</h2>
+        <div class="space-y-1">
+          <label class="text-xs text-gray-400 block">Unesi Groq API Ključ:</label>
+          <input type="password" id="groqKeyInput" class="w-full skeuo-inset p-2 rounded-xl text-sm border-none outline-none font-mono" placeholder="gsk_..." onchange="saveGroqKey(this.value)">
+        </div>
+        <div class="flex items-center justify-between p-1">
+          <span class="text-xs text-gray-300">Pojednostavljeni režim obrade</span>
+          <input type="checkbox" id="simpleModeToggle" onchange="toggleSimpleMode(this.checked)" class="w-4 h-4">
+        </div>
+      </div>
+
+      <!-- Fizički render podešavanja interfejsa -->
+      <div class="skeuo-panel p-4 space-y-4">
+        <h2 class="text-sm font-bold text-gray-400 uppercase tracking-wider">3D Skeuomorphic Master Podešavanja</h2>
+        
+        <div class="grid grid-cols-2 gap-3">
+          <div class="space-y-1">
+            <label class="text-xs text-gray-400 block">Boja Neon Svetla (Boja)</label>
+            <input type="range" id="neonHueSlider" min="0" max="360" value="310" class="w-full" oninput="updateNeonHue(this.value)">
+          </div>
+          <div class="space-y-1">
+            <label class="text-xs text-gray-400 block">Intenzitet Senki / Dubina</label>
+            <input type="range" id="shadowSlider" min="0" max="200" value="100" class="w-full" oninput="updateShadowIntensity(this.value)">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3 border-t border-gray-800 pt-3">
+          <div class="space-y-1">
+            <label class="text-xs text-gray-400 block">Broj kolona mreže (1-5)</label>
+            <input type="range" id="gridColsSlider" min="1" max="5" value="3" class="w-full" oninput="updateGridCols(this.value)">
+          </div>
+          <div class="space-y-1">
+            <label class="text-xs text-gray-400 block">Providnost panela</label>
+            <input type="range" id="opacitySlider" min="10" max="100" value="85" class="w-full" oninput="updateOpacity(this.value)">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3 border-t border-gray-800 pt-3">
+          <div class="space-y-1">
+            <label class="text-xs text-gray-400 block">Širina Mikrofon Dugmeta</label>
+            <input type="range" id="micSizeSlider" min="50" max="120" value="70" class="w-full" oninput="updateMicSize(this.value)">
+          </div>
+          <div class="space-y-1">
+            <label class="text-xs text-gray-400 block">Mesečni budžet (RSD)</label>
+            <input type="number" id="budgetLimitInput" value="50000" class="w-full skeuo-inset p-1.5 rounded-lg text-xs" onchange="saveBudgetLimit(this.value)">
+          </div>
+        </div>
+
+        <!-- Podešavanja Dimenzija Avatara i Navigacije -->
+        <div class="space-y-3 border-t border-gray-800 pt-3">
+          <div class="grid grid-cols-2 gap-3">
+            <div class="space-y-1">
+              <label class="text-xs text-gray-400 block">Širina Avatara (px)</label>
+              <input type="range" id="avatarWidthSlider" min="40" max="150" value="64" class="w-full" oninput="updateAvatarWidth(this.value)">
+            </div>
+            <div class="space-y-1">
+              <label class="text-xs text-gray-400 block">Visina Avatara (px)</label>
+              <input type="range" id="avatarHeightSlider" min="40" max="150" value="64" class="w-full" oninput="updateAvatarHeight(this.value)">
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div class="space-y-1">
+              <label class="text-xs text-gray-400 block">Visina Nav Bara (px)</label>
+              <input type="range" id="navHeightSlider" min="50" max="100" value="70" class="w-full" oninput="updateNavHeight(this.value)">
+            </div>
+            <div class="space-y-1">
+              <label class="text-xs text-gray-400 block">Veličina Ikona u Navigaciji</label>
+              <input type="range" id="navIconSizeSlider" min="16" max="36" value="22" class="w-full" oninput="updateNavIconSize(this.value)">
+            </div>
+          </div>
+        </div>
+
+        <!-- Paleta boja elemenata -->
+        <div class="grid grid-cols-3 gap-2 border-t border-gray-800 pt-3">
+          <div>
+            <label class="text-[10px] text-gray-400 block mb-1">Tekst</label>
+            <input type="color" id="textColorPicker" value="#ffffff" class="w-full h-8 rounded bg-transparent cursor-pointer" onchange="updateMasterColor('text', this.value)">
+          </div>
+          <div>
+            <label class="text-[10px] text-gray-400 block mb-1">Pozadina komponenti</label>
+            <input type="color" id="bgColorPicker" value="#1c1c1e" class="w-full h-8 rounded bg-transparent cursor-pointer" onchange="updateMasterColor('bg', this.value)">
+          </div>
+          <div>
+            <label class="text-[10px] text-gray-400 block mb-1">Boja ivica</label>
+            <input type="color" id="borderColorPicker" value="#ffffff" class="w-full h-8 rounded bg-transparent cursor-pointer" onchange="updateMasterColor('border', this.value)">
+          </div>
+        </div>
+
+        <!-- Sistemske Akcije -->
+        <div class="pt-2">
+          <button onclick="clearAllCustomizations()" class="w-full bg-red-900/40 border border-red-700/50 text-red-200 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider">Resetuj sva podešavanja aplikacije</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ================= EDIT EMOJI / SLIKA MODAL ================= -->
+  <div id="editEmojiModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden items-center justify-center p-4">
+    <div class="skeuo-panel p-5 w-full max-w-sm space-y-4">
+      <h3 class="text-base font-bold">Prilagodi izgled namirnice</h3>
+      <p id="editItemName" class="text-xs text-gray-400 font-medium"></p>
+      <div class="space-y-2">
+        <label class="text-xs text-gray-400 block">Unesi novi Emoji simbol:</label>
+        <input type="text" id="newEmojiInput" class="w-full skeuo-inset p-2.5 rounded-xl text-center text-xl" placeholder="🍎">
+      </div>
+      <div class="space-y-2 border-t border-gray-800 pt-3">
+        <label class="text-xs text-gray-400 block">Ili otvori kameru / otpremi fotografiju:</label>
+        <input type="file" id="itemImageFileInput" accept="image/*" class="text-xs text-gray-400 w-full" onchange="handleProductImageUpload(this)">
+      </div>
+      <div class="flex gap-2 pt-2">
+        <button onclick="closeEditEmojiModal()" class="w-1/2 skeuo-btn py-2 rounded-xl text-xs font-bold text-gray-400">Otkaži</button>
+        <button onclick="saveCustomEmoji()" class="w-1/2 skeuo-btn py-2 rounded-xl text-xs font-bold text-white neon-border">Sačuvaj</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= DODAJ NOVI PROIZVOD MODAL ================= -->
+  <div id="addModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-40 hidden items-center justify-center p-4">
+    <div class="skeuo-panel p-5 w-full max-w-md space-y-4">
+      <div class="flex justify-between items-center">
+        <h3 class="text-base font-bold">Katalog svih artikala</h3>
+        <button onclick="closeAddModal()" class="text-gray-400 text-sm font-bold px-2">X</button>
+      </div>
+      <div id="modalCatalogList" class="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
+        <!-- Lista artikala za dodavanje u brze prečice -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= POZADINSKA AUDIO REPRODUKCIJA META-PODACI ================= -->
+  <audio id="hiddenAudioEngine" class="hidden" preload="auto" loop></audio>
+
+  <!-- ================= PLUTAJUĆI INTERAKTIVNI AVATAR SA MIKROFONOM ================= -->
+  <div id="avatarContainer" class="fixed bottom-24 right-4 z-40 flex flex-col items-center gap-2 cursor-grab active:cursor-grabbing" style="width: 64px;">
+    <!-- Dugme za kopiranje naziva/autora pesme na memoriju telefona -->
+    <button onclick="copyTrackMetadata()" class="skeuo-btn w-8 h-8 rounded-full flex items-center justify-center text-xs shadow-lg" title="Kopiraj naziv pesme u telefon">📋</button>
+    <div class="relative rounded-full p-1 skeuo-panel neon-border" style="width: 100%; aspect-ratio: 1/1;">
+      <img id="avatarImg" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80" class="w-full h-full object-cover rounded-full" alt="Avatar" onclick="triggerAvatarClick()">
+      <input type="file" id="avatarFileInput" accept="image/*" class="hidden" onchange="handleAvatarUpload(this)">
+    </div>
+    <button id="micVoiceBtn" onclick="toggleVoiceRecognition()" class="skeuo-btn rounded-full flex items-center justify-center text-xl shadow-2xl relative" style="width: 70px; height: 70px;">
+      🎙️
+      <span id="micGlowWave" class="absolute inset-0 rounded-full border border-pink-500 animate-ping opacity-0"></span>
+    </button>
+  </div>
+
+  <!-- ================= DONJA NAVIGACIONA TRAKA (NAVBAR) ================= -->
+  <nav id="mainNavbar" class="fixed bottom-3 left-3 right-3 skeuo-panel px-4 flex items-center justify-between z-30" style="height: 70px;">
+    <button onclick="switchTab(0)" class="nav-btn flex flex-col items-center justify-center flex-1 opacity-100">
+      <span class="nav-icon mb-0.5" style="font-size: 22px;">🏠</span>
+      <span class="text-[10px] uppercase font-bold tracking-wider">Početna</span>
+    </button>
+    <button onclick="switchTab(1)" class="nav-btn flex flex-col items-center justify-center flex-1 opacity-50">
+      <span class="nav-icon mb-0.5" style="font-size: 22px;">🔍</span>
+      <span class="text-[10px] uppercase font-bold tracking-wider">Katalog</span>
+    </button>
+    <button onclick="switchTab(2)" class="nav-btn flex flex-col items-center justify-center flex-1 opacity-50 relative">
+      <span class="nav-icon mb-0.5" style="font-size: 22px;">🛒</span>
+      <span class="text-[10px] uppercase font-bold tracking-wider">Korpa</span>
+      <div id="cartBadgeCount" class="absolute top-1 right-4 bg-pink-600 text-white font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full hidden">0</div>
+    </button>
+    <button onclick="switchTab(3)" class="nav-btn flex flex-col items-center justify-center flex-1 opacity-50">
+      <span class="nav-icon mb-0.5" style="font-size: 22px;">⚙️</span>
+      <span class="text-[10px] uppercase font-bold tracking-wider">Ekran</span>
+    </button>
+  </nav>
+
+  <!-- ================= SKRIPTE I LOGIKA LOGISTIKE PODATAKA ================= -->
+  <script>
+    // --- BAZA PODATAKA OD 200 ARTIKALA (UKLJUČUJE SINONIME I KATEGORIJE) ---
+    const baseProducts = [
+      { id: 1, name: "Mleko kravlje 1L", price: 150, emoji: "🥛", keywords: ["mleko", "kravlje", "moj kravica", "dugotrajno"] },
+      { id: 2, name: "Hleb beli rezani", price: 90, emoji: "🍞", keywords: ["hleb", "beli", "sava", "veb", "pogaca"] },
+      { id: 3, name: "Jaja klasa L 10 kom", price: 220, emoji: "🥚", keywords: ["jaja", "jaje", "kokosija"] },
+      { id: 4, name: "Jogurt 1kg", price: 180, emoji: "🥛", keywords: ["jogurt", "balans", "goli"] },
+      { id: 5, name: "Maslac (Puter) 250g", price: 420, emoji: "🧈", keywords: ["maslac", "puter", "maslo"] },
+      { id: 6, name: "Pavlaka kisela 20% 400g", price: 160, emoji: "🥛", keywords: ["pavlaka", "kisela", "mileram"] },
+      { id: 7, name: "Sir sirni namaz 200g", price: 190, emoji: "🧀", keywords: ["namaz", "sirni", "abc", "sir"] },
+      { id: 8, name: "Kačkavalj Gauda 1kg", price: 1200, emoji: "🧀", keywords: ["kackavalj", "gauda", "sir tvrd", "trapist"] },
+      { id: 9, name: "Feta sir 500g", price: 450, emoji: "🧀", keywords: ["feta", "sir", "grcki", "somboled"] },
+      { id: 10, name: "Svež sir domaći 1kg", price: 600, emoji: "🧀", keywords: ["domaci", "sir svabski", "sitni sir"] },
+      { id: 11, name: "Šećer beli kristal 1kg", price: 110, emoji: "🍬", keywords: ["secer", "kristal", "slatko"] },
+      { id: 12, name: "So kuhinjska jodirana 1kg", price: 70, emoji: "🧂", keywords: ["so", "tuzlanska", "slano"] },
+      { id: 13, name: "Suncokretovo ulje 1L", price: 170, emoji: "🫗", keywords: ["ulje", "zejtin", "dijamant", "iskon"] },
+      { id: 14, name: "Maslinovo ulje ekstra devičansko 1L", price: 1600, emoji: "🫒", keywords: ["maslinovo", "ulje", "oliva"] },
+      { id: 15, name: "Brašno T-500 glatko 1kg", price: 90, emoji: "🌾", keywords: ["brasno", "tip 500", "pšenica"] },
+      { id: 16, name: "Brašno T-400 oštro 1kg", price: 100, emoji: "🌾", keywords: ["brasno", "ostro", "tip 400"] },
+      { id: 17, name: "Kafa mlevena tradicionalna 200g", price: 310, emoji: "☕", keywords: ["kafa", "grand", "bonito", "crna kafa"] },
+      { id: 18, name: "Espresso kafa u zrnu 1kg", price: 2400, emoji: "🫘", keywords: ["espresso", "espreso", "lavazza", "zrno"] },
+      { id: 19, name: "Čaj kamilica kutija", price: 120, emoji: "🍵", keywords: ["caj", "kamilica", "podravka"] },
+      { id: 20, name: "Čaj nana filter kesice", price: 130, emoji: "🍵", keywords: ["caj", "nana", "menta"] },
+      { id: 21, name: "Crni čaj rinfuz", price: 250, emoji: "🍂", keywords: ["crni", "indijski", "ruski caj"] },
+      { id: 22, name: "Zeleni čaj sa limunom", price: 180, emoji: "🍋", keywords: ["zeleni", "caj", "antioksidans"] },
+      { id: 23, name: "Svinjski but bez kostiju 1kg", price: 850, emoji: "🥩", keywords: ["svinjetina", "but", "svinjski", "meso"] },
+      { id: 24, name: "Juneci but bez kostiju 1kg", price: 1300, emoji: "🥩", keywords: ["junetina", "govedina", "but", "meso"] },
+      { id: 25, name: "Pileći file belo meso 1kg", price: 820, emoji: "🍗", keywords: ["piletina", "belo", "file", "pile"] },
+      { id: 26, name: "Pileći batak sa karabatakom 1kg", price: 450, emoji: "🍗", keywords: ["batak", "karabatak", "piletina"] },
+      { id: 27, name: "Mleveno meso mešano 1kg", price: 900, emoji: "🥩", keywords: ["mleveno", "mesano", "cevap", "sarma"] },
+      { id: 28, name: "Sveža pastrmka 1kg", price: 750, emoji: "🐟", keywords: ["riba", "pastrmka", "sveza"] },
+      { id: 29, name: "Fileti oslića zamrznuti 1kg", price: 680, emoji: "🐟", keywords: ["oslic", "fileti", "riba", "hubert"] },
+      { id: 30, name: "Tunjevina u ulju komadi", price: 240, emoji: "🐟", keywords: ["tunj", "tunjevina", "rio mare", " konzerva"] },
+      { id: 31, name: "Sardine u biljnom ulju", price: 140, emoji: "🐟", keywords: ["sardina", "konzerva", "eva"] },
+      { id: 32, name: "Čajna kobasica 1kg", price: 1600, emoji: "🥓", keywords: ["cajna", "kobasica", "suhomesnato", "matijevic", "yuhor"] },
+      { id: 33, name: "Kulen svinjski domaći 1kg", price: 2100, emoji: "🥓", keywords: ["kulen", "ljuto", "kobasica"] },
+      { id: 34, name: "Slonina dimljena pančeta 1kg", price: 1800, emoji: "🥓", keywords: ["slanina", "panceta", "dimljeno"] },
+      { id: 35, name: "Stišnjena šunka u crevu 1kg", price: 950, emoji: "🐷", keywords: ["sunka", "stisnjena", "pica sunka"] },
+      { id: 36, name: "Parizer pileći fina 1kg", price: 400, emoji: "🌭", keywords: ["parizer", "posebna", "salama"] },
+      { id: 37, name: "Viršle živinske 500g", price: 290, emoji: "🌭", keywords: ["virsle", "wudy", "virsla"] },
+      { id: 38, name: "Krompir beli domaći 1kg", price: 100, emoji: "🥔", keywords: ["krompir", "beli", "krtola"] },
+      { id: 39, name: "Krompir crveni 1kg", price: 110, emoji: "🥔", keywords: ["crveni", "krompir"] },
+      { id: 40, name: "Crni luk glavice 1kg", price: 90, emoji: "🧅", keywords: ["luk", "crni", "kapula"] },
+      { id: 41, name: "Beli luk komad", price: 40, emoji: "🧄", keywords: ["beli", "luk", "cesnjak"] },
+      { id: 42, name: "Šargarepa (Mrkva) 1kg", price: 120, emoji: "🥕", keywords: ["sargarepa", "mrkva"] },
+      { id: 43, name: "Paradajz domaći plastenički 1kg", price: 250, emoji: "🍅", keywords: ["paradajz", "rajcica", "tomator"] },
+      { id: 44, name: "Krastavac svež salatni 1kg", price: 180, emoji: "🥒", keywords: ["krastavac", "salata"] },
+      { id: 45, name: "Zelena salata puterica komad", price: 70, emoji: "🥬", keywords: ["salata", "zelena", "puterica"] },
+      { id: 46, name: "Kupus sveži rani 1kg", price: 80, emoji: "🥬", keywords: ["kupus", "futoski", "zelje"] },
+      { id: 47, name: "Paprika babura 1kg", price: 320, emoji: "🫑", keywords: ["paprika", "babura", "zut"] },
+      { id: 48, name: "Paprika šilja crvena 1kg", price: 400, emoji: "🫑", keywords: ["silja", "crvena", "za ajvar"] },
+      { id: 49, name: "Tikvice sveže zelene 1kg", price: 140, emoji: "🥒", keywords: ["tikvice", "tikvica"] },
+      { id: 50, name: "Patlidžan crni plavi 1kg", price: 280, emoji: "🍆", keywords: ["patlidzan", "plavi"] },
+      { id: 51, name: "Spanać očišćen u kesi 500g", price: 220, emoji: "🥬", keywords: ["spanac", "zelje", "popaj"] },
+      { id: 52, name: "Brokoli komad 500g", price: 260, emoji: "🥦", keywords: ["brokoli", "zeleno"] },
+      { id: 53, name: "Karfiol svež 1kg", price: 300, emoji: "🥦", keywords: ["karfiol", "bela glava"] },
+      { id: 54, name: "Celer koren komad", price: 150, emoji: "🥔", keywords: ["celer", "koren", "supa"] },
+      { id: 55, name: "Paškanat i peršun veza za supu", price: 110, emoji: "🌿", keywords: ["veza", "zelen", "za supu", "persun"] },
+      { id: 56, name: "Šampinjoni sveži u kadici 400g", price: 210, emoji: "🍄", keywords: ["pecurke", "sampinjoni", "gljive"] },
+      { id: 57, name: "Jabuka Ajdared 1kg", price: 120, emoji: "🍎", keywords: ["jabuka", "ajdared", "crvena"] },
+      { id: 58, name: "Jabuka Zlatni Delišes 1kg", price: 150, emoji: "🍏", keywords: ["zelena", "zlatni delises", "jabuka"] },
+      { id: 59, name: "Banana uvozna klasa I 1kg", price: 200, emoji: "🍌", keywords: ["banana", "banane", "manki"] },
+      { id: 60, name: "Pomorandža (Narandža) sa voćem 1kg", price: 180, emoji: "🍊", keywords: ["pomorandza", "narandza", "citrus"] },
+      { id: 61, name: "Limun uvozni žuti 1kg", price: 240, emoji: "🍋", keywords: ["limun", "limuntus", "kiselo"] },
+      { id: 62, name: "Grepfrut crveni 1kg", price: 260, emoji: "🍊", keywords: ["grejp", "grepfrut"] },
+      { id: 63, name: "Kivi korpica 1kg", price: 310, emoji: "🥝", keywords: ["kivi", "korpica"] },
+      { id: 64, name: "Jagode pakovanje 500g", price: 350, emoji: "🍓", keywords: ["jagode", "crveno voce"] },
+      { id: 65, name: "Maline zamrznute griz 400g", price: 480, emoji: "🍓", keywords: ["maline", "crveno zlato", "frikom"] },
+      { id: 66, name: "Borovnice sveže 125g", price: 290, emoji: "🫐", keywords: ["borovnice", "plave bobice"] },
+      { id: 67, name: "Lubenica domaća rinfuz 1kg", price: 70, emoji: "🍉", keywords: ["lubenica", "bostan", "dinja"] },
+      { id: 68, name: "Dinja mirisna komad 1kg", price: 150, emoji: "🍈", keywords: ["dinja", "slatko"] },
+      { id: 69, name: "Breskva domaća sočna 1kg", price: 220, emoji: "🍑", keywords: ["breskve", "breskva"] },
+      { id: 70, name: "Kajsija domaća za džem 1kg", price: 240, emoji: "🍑", keywords: ["kajsija", "kajsije"] },
+      { id: 71, name: "Grožđe belo stono 1kg", price: 350, emoji: "🍇", keywords: ["grozdje", "belo", "vinske"] },
+      { id: 72, name: "Grožđe crno Hamburg 1kg", price: 380, emoji: "🍇", keywords: ["crno", "grozdje", "hamburg"] },
+      { id: 73, name: "Šljive domaće plave 1kg", price: 100, emoji: "🫐", keywords: ["sljiva", "sljive", "rakija"] },
+      { id: 74, name: "Orah jezgro domaći 1kg", price: 1100, emoji: "🥜", keywords: ["orah", "jezgro", "kolaci"] },
+      { id: 75, name: "Lešnik sirovi očišćen 1kg", price: 1400, emoji: "🫘", keywords: ["lesnik", "lesnici"] },
+      { id: 76, name: "Badem sirovi rinfuz 1kg", price: 1350, emoji: "🥜", keywords: ["badem", "bademi"] },
+      { id: 77, name: "Kikiriki pečeni slani slon 500g", price: 280, emoji: "🥜", keywords: ["kikiriki", "grickalice"] },
+      { id: 78, name: "Kolači Plazma keks original 300g", price: 290, emoji: "🍪", keywords: ["plazma", "keks", "bambi"] },
+      { id: 79, name: "Mlevena Plazma kutija 300g", price: 310, emoji: "🍪", keywords: ["mlevena", "plazma", "torta"] },
+      { id: 80, name: "Čokolada Najlepše Želje 100g", price: 140, emoji: "🍫", keywords: ["cokolada", "najlepse zelje", "stark"] },
+      { id: 81, name: "Milka čokolada sa lešnikom 100g", price: 160, emoji: "🍫", keywords: ["milka", "cokolada", "alpska"] },
+      { id: 82, name: "Eurokrem tegla namaz 500g", price: 420, emoji: "🍯", keywords: ["eurokrem", "gandola", "linolada", "krem"] },
+      { id: 83, name: "Nutella krem namaz 400g", price: 510, emoji: "🍯", keywords: ["nutela", "nutella", "ferero"] },
+      { id: 84, name: "Keks Petit Beurre 400g", price: 180, emoji: "🍪", keywords: ["petit", "keks", "stark"] },
+      { id: 85, name: "Napolitanke sa čokoladom Štark 400g", price: 260, emoji: "🍪", keywords: ["napolitanke", "stark", "vafli"] },
+      { id: 86, name: "Smoki original kesa velika 150g", price: 120, emoji: "🍿", keywords: ["smoki", "stark", "kikiriki slani"] },
+      { id: 87, name: "Čips Marbo slani klasični 150g", price: 170, emoji: "🥔", keywords: ["cips", "marbo", "rebrasti"] },
+      { id: 88, name: "Štapići slani punjeni kikirikijem 120g", price: 80, emoji: "🥨", keywords: ["stapici", "pardon", "clif"] },
+      { id: 89, name: "Kokice za mikrotalasnu slane", price: 60, emoji: "🍿", keywords: ["kokice", "mikrotalasna"] },
+      { id: 90, name: "Sladoled Quattro frikom porodični", price: 650, emoji: "🍦", keywords: ["sladoled", "quattro", "cokolada vanila"] },
+      { id: 91, name: "Med pčelinji bagremov 1kg", price: 1200, emoji: "🍯", keywords: ["med", "pcelinji", "bagrem"] },
+      { id: 92, name: "Džem od šipka Podravka 400g", price: 340, emoji: "🍯", keywords: ["dzem", "marmelada", "sipak"] },
+      { id: 93, name: "Mlevena paprika slatka aleva 100g", price: 150, emoji: "🌶", keywords: ["aleva", "paprika", "slatka"] },
+      { id: 94, name: "Mlevena paprika ljuta tucana 100g", price: 180, emoji: "🌶", keywords: ["tucana", "ljuta", "paprika"] },
+      { id: 95, name: "Crni biber mleveni kesica", price: 40, emoji: "🧂", keywords: ["biber", "crni", "mleveni"] },
+      { id: 96, name: "Vegeta začin kesa 250g", price: 210, emoji: "🫙", keywords: ["vegeta", "zacin", "dodatak jelo"] },
+      { id: 100, name: "Pirinč (Riža) dugo zrno 1kg", price: 190, emoji: "🍚", keywords: ["pirinac", "riza", "skrob"] },
+      { id: 101, name: "Testenina Špagete br. 5 500g", price: 110, emoji: "🍝", keywords: ["spagete", "barilla", "testenina", "makaroni"] },
+      { id: 102, name: "Supa u kesici kokošija sa rezancima", price: 60, emoji: "🍲", keywords: ["supa", "kokosija", "podravka"] },
+      { id: 103, name: "Pasulj tetovac rinfuz 1kg", price: 380, emoji: "🫘", keywords: ["pasulj", "tetovac", "prebranac"] },
+      { id: 104, name: "Grašak zamrznuti Frikom 450g", price: 190, emoji: "🟢", keywords: ["grasak", "zeleno", "frikom"] },
+      { id: 105, name: "Kukuruz šećerac zamrznuti 450g", price: 200, emoji: "🌽", keywords: ["kukuruz", "secerac"] },
+      { id: 106, name: "Pasirani paradajz u tetrapaku 500ml", price: 100, emoji: "🍅", keywords: ["tomatino", "pasirani", "paradajz sos"] },
+      { id: 107, name: "Majonez Thomy original tuba 160g", price: 180, emoji: "🧴", keywords: ["majonez", "thomy", "tuba"] },
+      { id: 108, name: "Kečap Polimark slatki 500g", price: 160, emoji: "🍅", keywords: ["kecap", "polimark", "slatki"] },
+      { id: 109, name: "Senf sitni Polimark 100g", price: 80, emoji: "🫙", keywords: ["senf", "gorcica"] },
+      { id: 110, name: "Sirće vinsko alkoholno 1L", price: 120, emoji: "🫗", keywords: ["sirce", "kiselina"] },
+      { id: 111, name: "Kvasac sveži kocka", price: 45, emoji: "🍞", keywords: ["kvasac", "kocka", "pekar"] },
+      { id: 112, name: "Prašak za pecivo kesica", price: 15, emoji: "🧁", keywords: ["prasak", "pecivo", "dr oetker"] },
+      { id: 113, name: "Vanilin šećer kesica", price: 15, emoji: "🍬", keywords: ["vanilin", "secer"] },
+      { id: 114, name: "Zobene (Ovsene) pahuljice 500g", price: 140, emoji: "🥣", keywords: ["ovsene", "zobene", "pahuljice"] },
+      { id: 115, name: "Musli voćni mešavina 500g", price: 320, emoji: "🥣", keywords: ["musli", "voce", "dorucak"] },
+      { id: 116, name: "Kora za pitu i gibanicu domaća 500g", price: 150, emoji: "🥐", keywords: ["kore", "gibanica", "pita"] },
+      { id: 117, name: "Smrznuto lisnato testo 500g", price: 220, emoji: "🥮", keywords: ["lisnato", "testo", "frikom"] },
+      { id: 118, name: "Kiselu kupus ribanac u kesi 1kg", price: 230, emoji: "🥬", keywords: ["ribanac", "kiseli kupus", "sarma"] },
+      { id: 119, name: "Kornišoni (Kiseli krastavci) tegla", price: 270, emoji: "🥒", keywords: ["kornisoni", "krastavcici", "kiseli"] },
+      { id: 120, name: "Ajvar domaći blagi uprženi tegla", price: 650, emoji: "🫑", keywords: ["ajvar", "bakina tajna", "blagi"] },
+      { id: 121, name: "Masline zelene bez koštica tegla", price: 290, emoji: "🫒", keywords: ["masline", "zelene"] },
+      { id: 122, name: "Mineralna voda Knjaz Miloš 1.75L", price: 85, emoji: "🍾", keywords: ["knjaz", "milos", "kisela", "voda"] },
+      { id: 123, name: "Negazirana voda Rosa 1.5L", price: 75, emoji: "💧", keywords: ["rosa", "voda", "obican"] },
+      { id: 124, name: "Coca-Cola original plastika 2L", price: 195, emoji: "🥤", keywords: ["koka kola", "coca", "kola"] },
+      { id: 125, name: "Fanta Orange 2L", price: 180, emoji: "🥤", keywords: ["fanta", "oranz"] },
+      { id: 126, name: "Sok od jabuke bistri 100% NeXt 1L", price: 170, emoji: "🧃", keywords: ["sok", "jabuka", "next"] },
+      { id: 127, name: "Sok od pomorandže sa pulpom 1L", price: 210, emoji: "🧃", keywords: ["pomorandza", "sok", "next", "bravo"] },
+      { id: 128, name: "Gusti sok breskva Nektar 1L", price: 160, emoji: "🧃", keywords: ["gusti", "breskva", "nektar"] },
+      { id: 129, name: "Ledeni čaj breskva Jana 1.5L", price: 150, emoji: "🧃", keywords: ["ice tea", "ledeni caj", "jana"] },
+      { id: 130, name: "Energetski napitak Ultra Energy limenka", price: 90, emoji: "⚡", keywords: ["ultra", "energetsko", "red bull"] },
+      { id: 131, name: "Pivo Jelen svetlo limenka 0.5L", price: 105, emoji: "🍺", keywords: ["pivo", "jelen", "alkohol"] },
+      { id: 132, name: "Pivo Lav svetlo 0.5L limenka", price: 105, emoji: "🍺", keywords: ["lav", "pivo"] },
+      { id: 133, name: "Zaječarsko pivo staklo 0.5L", price: 95, emoji: "🍺", keywords: ["zajecarsko", "pivo", "staklo"] },
+      { id: 134, name: "Crveno vino Pro corde Plantaže 0.75L", price: 850, emoji: "🍷", keywords: ["vino", "crno", "vranac", "procorde"] },
+      { id: 135, name: "Belo vino Graševina Kutjevo 0.75L", price: 720, emoji: "🥂", keywords: ["belo", "vino", "grasevina"] },
+      { id: 136, name: "Rakija šljivovica domaća stara 0.7L", price: 1500, emoji: "🥃", keywords: ["rakija", "sljiva", "prepecenica"] },
+      { id: 137, name: "Toalet papir Zewa breskva 10 rolni", price: 480, emoji: "🧻", keywords: ["toalet", "papir", "zewa", "wc"] },
+      { id: 138, name: "Kuhinjski ubrusi dvoslojni Paloma", price: 190, emoji: "🧻", keywords: ["ubrus", "kuhinja", "paloma"] },
+      { id: 139, name: "Salfete bele jednoslojne 100 kom", price: 90, emoji: "🧻", keywords: ["salfete", "salvete"] },
+      { id: 140, name: "Vlažne maramice bebi Violeta 64 kom", price: 210, emoji: "🧼", keywords: ["vlazne", "maramice", "violeta"] },
+      { id: 141, name: "Deterdžent za veš Ariel prašak 3kg", price: 950, emoji: "🧼", keywords: ["ariel", "prasak", "ves", "aks"] },
+      { id: 142, name: "Tečni deterdžent za crni veš Perwoll", price: 790, emoji: "🧴", keywords: ["perwoll", "pervol", "tecni"] },
+      { id: 143, name: "Omekšivač za veš Lenor Blue 1L", price: 420, emoji: "🧴", keywords: ["omeksivac", "lenor", "plavi"] },
+      { id: 144, name: "Deterdžent za sudove Fairy limun 800ml", price: 280, emoji: "🧴", keywords: ["fairy", "fery", "sudovi"] },
+      { id: 145, name: "Tablete za sudomašinu Finish 60 kom", price: 1400, emoji: "🧼", keywords: ["finish", "tablete", "sudomasina"] },
+      { id: 146, name: "Sredstvo za čišćenje stakla Clin spray", price: 240, emoji: "🧴", keywords: ["clin", "staklo", "mer"] },
+      { id: 147, name: "Domestos za dezinfekciju WC šolje plavi", price: 260, emoji: "🧴", keywords: ["domestos", "wc", "kiselina"] },
+      { id: 148, name: "Bref osveživač za WC školjku kul", price: 190, emoji: "🧼", keywords: ["bref", "kuglice"] },
+      { id: 149, name: "Tečni sapun za ruke litar dopuna", price: 170, emoji: "🧼", keywords: ["sapun", "tecni", "dopuna"] },
+      { id: 150, name: "Sapun u kamenu Dove original", price: 130, emoji: "🧼", keywords: ["dove", "sapun", "kamen"] },
+      { id: 151, name: "Šampon za kosu Nivea Men 250ml", price: 320, emoji: "🧴", keywords: ["sampon", "nivea", "kosa"] },
+      { id: 152, name: "Balzam za kosu L'Oreal Elsève", price: 390, emoji: "🧴", keywords: ["balzam", "regenerator"] },
+      { id: 153, name: "Gel za tuširanje Palmolive maslina", price: 280, emoji: "🧴", keywords: ["gel", "tusiranje", "palmolive"] },
+      { id: 154, name: "Pasta za zube Colgate Triple Action", price: 180, emoji: "🪥", keywords: ["kalodont", "pasta", "zubi", "colgate"] },
+      { id: 155, name: "Četkica za zube Oral-B medium", price: 220, emoji: "🪥", keywords: ["cetkica", "zubi"] },
+      { id: 156, name: "Dezodorans u spreju Rexona ženski", price: 340, emoji: "🧴", keywords: ["rexona", "dezodorans", "sprej"] },
+      { id: 157, name: "Muški stik Old Spice Whitewater", price: 420, emoji: "🧴", keywords: ["old spice", "stik", "aks"] },
+      { id: 158, name: "Pena za brijanje Gillette Classic", price: 310, emoji: "🧴", keywords: ["pena", "brijanje", "gillette"] },
+      { id: 159, name: "Brijači jednokratni Bic 3 4 kom", price: 260, emoji: "🪒", keywords: ["brijac", "bic"] },
+      { id: 160, name: "Krema za lice Solea univerzalna", price: 210, emoji: "🫙", keywords: ["krema", "solea", "nivea"] },
+      { id: 161, name: "Pelene za bebe Pampers veličina 4", price: 2200, emoji: "👶", keywords: ["pelene", "pampers", "beba"] },
+      { id: 162, name: "Hrana za bebe Frutek kašica jabuka", price: 160, emoji: "🍼", keywords: ["kasica", "frutek", "bebi"] },
+      { id: 163, name: "Hrana za pse Pedigree granule 500g", price: 240, emoji: "🐶", keywords: ["pedigree", "psi", "hrana pas"] },
+      { id: 164, name: "Hrana za mačke Whiskas sos kesica", price: 75, emoji: "🐱", keywords: ["whiskas", "macka", "vlazna hrana"] },
+      { id: 165, name: "Pesak za mačke higijenski 5kg", price: 450, emoji: "🐈", keywords: ["pesak", "macke", "posip"] },
+      { id: 166, name: "Ugljeni briketi za roštilj 2.5kg", price: 350, emoji: "🪵", keywords: ["briket", "rostilj", "ugalj"] },
+      { id: 167, name: "Aluminijumska folija 10m", price: 140, emoji: "🪙", keywords: ["folija", "aluminijumska"] },
+      { id: 168, name: "Papir za pečenje 8m rolna", price: 120, emoji: "🧻", keywords: ["papir", "pecenje", "pleh"] },
+      { id: 169, name: "Kese za smeće sa trakom 50L", price: 160, emoji: "🛍", keywords: ["kese", "smece", "djubre"] },
+      { id: 170, name: "Plastične čaše jednokratne 20 kom", price: 100, emoji: "🥛", keywords: ["case", "plasticne"] },
+      { id: 171, name: "Čačkalice drvene kutijica", price: 50, emoji: "🪵", keywords: ["cackalice", "zub"] },
+      { id: 172, name: "Šibice drvca pakovanje 10 kom", price: 60, emoji: "🔥", keywords: ["sibice", "vatra"] },
+      { id: 173, name: "Upaljač elektronski klasični Crni", price: 50, emoji: "🔥", keywords: ["upaljac", "bic", "kremen"] },
+      { id: 174, name: "Baterije Duracell AA alkalne 4 kom", price: 490, emoji: "🔋", keywords: ["baterije", "duracell", "aa"] },
+      { id: 175, name: "Baterije AAA alkalne tanke 4 kom", price: 490, emoji: "🔋", keywords: ["aaa", "baterije"] },
+      { id: 176, name: "Sijalica LED E27 11W toplo bela", price: 180, emoji: "💡", keywords: ["sijalica", "led", "e27"] },
+      { id: 177, name: "Sveće male čajne 30 kom", price: 290, emoji: "🕯", keywords: ["svece", "cajne"] },
+      { id: 178, name: "Flasteri klasični vodootporni 20 kom", price: 140, emoji: "🩹", keywords: ["flaster", "ranica", "hansaplast"] },
+      { id: 179, name: "Vata sanitarna pamučna 100g", price: 110, emoji: "☁", keywords: ["vata", "pamuk"] },
+      { id: 180, name: "Aspirin tablete kutija", price: 280, emoji: "💊", keywords: ["aspirin", "glavobolja", "lek"] },
+      { id: 181, name: "Cink + Vitamin C direkt kesice", price: 350, emoji: "💊", keywords: ["vitamin", "imunitet", "cink"] },
+      { id: 182, name: "Žvakaće gume Airwaves mentol", price: 80, emoji: "🍬", keywords: ["zvake", "airwaves", "orbit"] },
+      { id: 183, name: "Kikiriki puter tegla 350g", price: 390, emoji: "🥜", keywords: ["kikiriki", "puter", "namaz"] },
+      { id: 184, name: "Čokoladno mleko Imlek 250ml", price: 70, emoji: "🥛", keywords: ["cokoladno", "mleko", "imlek"] },
+      { id: 185, name: "Proteinski puding čokolada Zbregov", price: 160, emoji: "🍮", keywords: ["protein", "puding", "zbregov"] },
+      { id: 186, name: "Sveži kvasac u prahu kesica", price: 35, emoji: "🍞", keywords: ["suvi", "kvasac"] },
+      { id: 187, name: "Kokosovo brašno za kolače 100g", price: 110, emoji: "🥥", keywords: ["kokos", "brasno"] },
+      { id: 188, name: "Suvo grožđe rinfuz 100g", price: 90, emoji: "🍇", keywords: ["suvo", "grozdje", "suvica"] },
+      { id: 189, name: "Suve šljive bez koštica 200g", price: 220, emoji: "🫐", keywords: ["suve", "sljive"] },
+      { id: 190, name: "Smrznuta mešavina za rusku salatu", price: 180, emoji: "🥕", keywords: ["ruska", "salata", "frikom"] },
+      { id: 191, name: "Smrznuti pomfrit za prženje 1kg", price: 340, emoji: "🥔", keywords: ["pomfrit", "krompir"] },
+      { id: 192, name: "Lisnato testo sa višnjama Frikom", price: 290, emoji: "🥮", keywords: ["visnja", "testo"] },
+      { id: 193, name: "Sladoled Rumenko štapić Frikom", price: 60, emoji: "🍦", keywords: ["rumenko", "sladoled"] },
+      { id: 194, name: "Sladoled King čokolada ekstra", price: 180, emoji: "🍦", keywords: ["king", "sladoled"] },
+      { id: 195, name: "Čokoladna bananica Štark komad", price: 25, emoji: "🍌", keywords: ["bananica", "krem bananica"] },
+      { id: 196, name: "Gumi bone bombone Haribo Goldbären", price: 110, emoji: "🧸", keywords: ["haribo", "gumi", "bombone"] },
+      { id: 197, name: "Bonžita žitna štanglica narandža", price: 40, emoji: "🌾", keywords: ["bonzita", "stanglica"] },
+      { id: 198, name: "Smoki Čoko preliv Štark 80g", price: 110, emoji: "🍿", keywords: ["coko", "smoki"] },
+      { id: 199, name: "Čips Pringles Original 165g", price: 360, emoji: "🥔", keywords: ["pringles", "pringls"] },
+      { id: 200, name: "Semenke suncokreta pržene slane", price: 80, emoji: "🌻", keywords: ["semenke", "suncokret", "gric"] }
+    ];
+
+    let products = [...baseProducts];
+    let cart = [];
+    let frequentIds = [1, 2, 3, 4, 5, 11, 13, 17, 78]; // Podrazumevane prečice
+    let editingProductId = null;
+
+    // --- VARIJABLE MEMORIJE (LOCALSTORAGE) ---
+    let groqApiKey = localStorage.getItem('groq_api_key') || "";
+    let isSimpleMode = localStorage.getItem('groq_simple_mode') === 'true';
+    let budgetLimit = parseFloat(localStorage.getItem('budgetLimit')) || 50000;
+    let monthlySpent = parseFloat(localStorage.getItem('monthlySpentTotal')) || 0;
+    
+    let savedHue = localStorage.getItem('ui_neon_hue') || "310";
+    let savedCols = localStorage.getItem('ui_grid_cols') || "3";
+    let savedAvW = localStorage.getItem('ui_av_w') || "64";
+    let savedAvH = localStorage.getItem('ui_av_h') || "64";
+    let savedNavH = localStorage.getItem('ui_nav_h') || "70";
+    let savedNavSize = localStorage.getItem('ui_nav_size') || "22";
+    let savedMicSize = localStorage.getItem('ui_mic_size') || "70";
+    let customOpacity = localStorage.getItem('ui_panel_opacity') || "85";
+    
+    let appTextColor = localStorage.getItem('c_text') || "#ffffff";
+    let appComponentBg = localStorage.getItem('c_bg') || "#1c1c1e";
+    let appComponentBorder = localStorage.getItem('c_border') || "rgba(255,255,255,0.1)";
+    let savedBgData = localStorage.getItem('app_custom_bg_img') || "";
+
+    // --- INTEGRISANA MULTIMEDIJALNA BIBLIOTEKA ZA HELENA PLAYER ---
+    const mediaTracks = [
+      { id: 1, title: "Ambijentalni Zvuk Proleća", artist: "Muzika za kupovinu", url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3", type: "audio" },
+      { id: 2, title: "Lo-Fi Beats For Coding", artist: "GroceryAI Beats", url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3", type: "audio" },
+      { id: 3, title: "Deep Focus Bass Sub", artist: "Helena Engine Test", url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3", type: "audio" }
+    ];
+    let currentTrackIdx = 0;
+    let isPlaying = false;
+    let audioContext, mediaSource, bassFilter, equalizerFilter;
+    let isEqActive = false;
+
+    // --- AUDIO AUTOMACIJA / PLAYER FUNKCIJE ---
+    const hiddenAudio = document.getElementById('hiddenAudioEngine');
+    
+    function initAudioEngine() {
+      if (audioContext) return;
+      try {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        audioContext = new AudioContextClass();
+        mediaSource = audioContext.createMediaElementSource(hiddenAudio);
+        
+        // Kreiranje filtera za Bass Boost
+        bassFilter = audioContext.createBiquadFilter();
+        bassFilter.type = "lowshelf";
+        bassFilter.frequency.value = 150;
+        bassFilter.gain.value = 0;
+
+        // Kreiranje filtera za Equalizer (srednji opseg vokalni buster)
+        equalizerFilter = audioContext.createBiquadFilter();
+        equalizerFilter.type = "peaking";
+        equalizerFilter.frequency.value = 1000;
+        equalizerFilter.Q.value = 1.0;
+        equalizerFilter.gain.value = 0;
+
+        // Povezivanje lanca čvorova
+        mediaSource.connect(bassFilter);
+        bassFilter.connect(equalizerFilter);
+        equalizerFilter.connect(audioContext.destination);
+      } catch(e) {
+        console.log("AudioContext sprečen ili nije podržan do interakcije.");
+      }
+    }
+
+    function loadTrack(idx) {
+      currentTrackIdx = idx;
+      const track = mediaTracks[currentTrackIdx];
+      hiddenAudio.src = track.url;
+      document.getElementById('nowPlayingTitle').textContent = track.title;
+      document.getElementById('nowPlayingArtist').textContent = track.artist;
+    }
+
+    function togglePlayPause() {
+      initAudioEngine();
+      if(audioContext && audioContext.state === 'suspended') audioContext.resume();
+      
+      if (!hiddenAudio.src) loadTrack(0);
+
+      if (isPlaying) {
+        hiddenAudio.pause();
+        document.getElementById('playPauseBtn').textContent = "▶";
+        isPlaying = false;
+      } else {
+        hiddenAudio.play().catch(e => console.log(e));
+        document.getElementById('playPauseBtn').textContent = "⏸";
+        isPlaying = true;
+        animateEqBars();
+      }
+    }
+
+    function nextTrack() {
+      let next = (currentTrackIdx + 1) % mediaTracks.length;
+      loadTrack(next);
+      if (isPlaying) hiddenAudio.play();
+    }
+
+    function prevTrack() {
+      let prev = currentTrackIdx - 1;
+      if (prev < 0) prev = mediaTracks.length - 1;
+      loadTrack(prev);
+      if (isPlaying) hiddenAudio.play();
+    }
+
+    function adjustVolume(val) {
+      hiddenAudio.volume = val / 100;
+      document.getElementById('volumeVal').textContent = val + "%";
+    }
+
+    function adjustBassBoost(val) {
+      initAudioEngine();
+      document.getElementById('bassBoostVal').textContent = val + "%";
+      if (bassFilter) {
+        // Mapiranje 0-100% na 0 do 15 decibela pojačanja niskih frekvencija
+        bassFilter.gain.value = (val / 100) * 15;
+      }
+    }
+
+    function toggleEqualizer() {
+      initAudioEngine();
+      isEqActive = !isEqActive;
+      const btn = document.getElementById('eqToggleBtn');
+      if (isEqActive) {
+        btn.textContent = "EQ ON";
+        btn.classList.add('neon-text');
+        if (equalizerFilter) equalizerFilter.gain.value = 8; // Pojačavamo vokale za čišći izlaz
+      } else {
+        btn.textContent = "EQ OFF";
+        btn.classList.remove('neon-text');
+        if (equalizerFilter) equalizerFilter.gain.value = 0;
+      }
+    }
+
+    function copyTrackMetadata() {
+      const track = mediaTracks[currentTrackIdx];
+      const textToCopy = `${track.title} - ${track.artist}`;
+      navigator.clipboard.writeText(textToCopy).then(() => {
+        speakAndShow("Metadata prekopirana!");
+      }).catch(() => {
+        speakAndShow("Greška pri kopiranju.");
+      });
+    }
+
+    function animateEqBars() {
+      if (!isPlaying) return;
+      const bars = document.querySelectorAll('#eqVisualizerContainer div');
+      bars.forEach(bar => {
+        const randomHeight = Math.floor(Math.random() * 28) + 4;
+        bar.style.height = randomHeight + 'px';
+      });
+      setTimeout(animateEqBars, 150);
+    }
+
+    // --- LOGIKA BUDŽETA I RAČUNANJA ---
+    function refreshBudgetUI() {
+      let rem = budgetLimit - monthlySpent;
+      const el = document.getElementById('budgetDisplay');
+      el.textContent = rem.toLocaleString('sr-RS') + " RSD";
+      if(rem < 0) el.classList.add('text-red-500'), el.classList.remove('neon-text');
+      else el.classList.remove('text-red-500'), el.classList.add('neon-text');
+    }
+
+    function saveBudgetLimit(val) {
+      budgetLimit = parseFloat(val) || 50000;
+      localStorage.setItem('budgetLimit', budgetLimit);
+      refreshBudgetUI();
+    }
+
+    // --- REGLERI / VIZUELNO APDEJTOVANJE STILOVA (NIVO 0 - NIVO 4) ---
+    function updateNeonHue(val) {
+      savedHue = val;
+      localStorage.setItem('ui_neon_hue', val);
+      document.getElementById('neonHueSlider').value = val;
+      document.documentElement.style.setProperty('--neon-hue', val);
+    }
+
+    function updateShadowIntensity(val) {
+      let mapped = val / 100;
+      localStorage.setItem('ui_shadow_intensity', mapped);
+      document.documentElement.style.setProperty('--shadow-intensity', mapped);
+    }
+
+    function updateGridCols(val) {
+      savedCols = val;
+      localStorage.setItem('ui_grid_cols', val);
+      document.getElementById('gridColsSlider').value = val;
+      document.getElementById('frequentGrid').style.gridTemplateColumns = `repeat(${val}, minmax(0, 1fr))`;
+    }
+
+    function updateOpacity(val) {
+      customOpacity = val;
+      localStorage.setItem('ui_panel_opacity', val);
+      document.getElementById('opacitySlider').value = val;
+      let alpha = val / 100;
+      // Dinamički menjamo providnost pozadine bez uticaja na tekst elementa
+      document.documentElement.style.setProperty('--component-bg', `rgba(28, 28, 30, ${alpha})`);
+    }
+
+    function updateAvatarWidth(val) { savedAvW = val; localStorage.setItem('ui_av_w', val); document.getElementById('avatarWidthSlider').value = val; document.getElementById('avatarContainer').style.width = val + 'px'; }
+    function updateAvatarHeight(val) { savedAvH = val; localStorage.setItem('ui_av_h', val); document.getElementById('avatarHeightSlider').value = val; document.getElementById('avatarImg').style.height = val + 'px'; }
+    function updateNavHeight(val) { savedNavH = val; localStorage.setItem('ui_nav_h', val); document.getElementById('navHeightSlider').value = val; document.getElementById('mainNavbar').style.height = val + 'px'; }
+    function updateMicSize(val) { savedMicSize = val; localStorage.setItem('ui_mic_size', val); document.getElementById('micSizeSlider').value = val; document.getElementById('micVoiceBtn').style.width = val + 'px'; document.getElementById('micVoiceBtn').style.height = val + 'px'; }
+    
+    function updateNavIconSize(val) {
+      savedNavSize = val;
+      localStorage.setItem('ui_nav_size', val);
+      document.getElementById('navIconSizeSlider').value = val;
+      document.querySelectorAll('.nav-icon').forEach(i => i.style.fontSize = val + 'px');
+    }
+
+    function updateMasterColor(type, hex) {
+      if (type === 'text') { appTextColor = hex; localStorage.setItem('c_text', hex); document.documentElement.style.setProperty('--text-color', hex); }
+      if (type === 'bg') { appComponentBg = hex; localStorage.setItem('c_bg', hex); }
+      if (type === 'border') { appComponentBorder = hex; localStorage.setItem('c_border', hex); document.documentElement.style.setProperty('--component-border', hex); }
+    }
+
+    // --- UPLOAD MEHANIKE (AVATAR I POZADINA CELOG EKRANA) ---
+    function triggerAvatarClick() {
+      if(window._avDragged) return; // Sprečava otvaranje file upload-a tokom prilaženja i vučenja
+      if(confirm("Želiš li da promeniš sliku avatara?")) {
+        document.getElementById('avatarFileInput').click();
+      }
+    }
+
+    function handleAvatarUpload(input) {
+      if(input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          document.getElementById('avatarImg').src = e.target.result;
+          localStorage.setItem('customAvatarIcon', e.target.result);
+        };
+        reader.readAsDataURL(input.files[0]);
+      }
+    }
+
+    function handleProductImageUpload(input) {
+      if(input.files && input.files[0] && editingProductId) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          localStorage.setItem(`p_img_${editingProductId}`, e.target.result);
+          let pIndex = products.findIndex(p => p.id === editingProductId);
+          if(pIndex !== -1) {
+            products[pIndex].emoji = ""; // Praznimo tekstualni emoji jer imamo sliku
+            products[pIndex].isImage = true;
+          }
+          speakAndShow("Slika artikla učitana!");
+          renderFrequent();
+          closeEditEmojiModal();
+        };
+        reader.readAsDataURL(input.files[0]);
+      }
+    }
+
+    // --- UPRAVLJANJE GLASOVNIM MODULOM & AI (GROQ DIKTAT) ---
+    let recognition;
+    let isListening = false;
+
+    function toggleVoiceRecognition() {
+      if (isListening) {
+        if(recognition) recognition.stop();
+        return;
+      }
+
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        speakAndShow("Tvoj telefon ne podržava direktno prepoznavanje glasa u pretraživaču.");
+        return;
+      }
+
+      recognition = new SpeechRecognition();
+      recognition.lang = 'sr-RS';
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+
+      recognition.onstart = () => {
+        isListening = true;
+        document.getElementById('micGlowWave').classList.remove('opacity-0');
+        document.getElementById('micVoiceBtn').classList.add('neon-border');
+      };
+
+      recognition.onresult = (event) => {
+        const spokenText = event.results[0][0].transcript;
+        speakAndShow(`Prepoznato: "${spokenText}"`);
+        processAiVoiceCommand(spokenText);
+      };
+
+      recognition.onerror = (e) => { console.error(e); stopMicUI(); };
+      recognition.onend = () => { stopMicUI(); };
+
+      recognition.start();
+    }
+
+    function stopMicUI() {
+      isListening = false;
+      document.getElementById('micGlowWave').classList.add('opacity-0');
+      document.getElementById('micVoiceBtn').classList.remove('neon-border');
+    }
+
+    function saveGroqKey(val) { groqApiKey = val.trim(); localStorage.setItem('groq_api_key', groqApiKey); }
+    function toggleSimpleMode(val) { isSimpleMode = val; localStorage.setItem('groq_simple_mode', val); }
+
+    // --- GLASOVNA OBRADA UZ REZERVNI LOKALNI PARSER ---
+    function extractQuantityFromText(text) {
+      // Standardni lokalni regex za vađenje brojeva iz rečenice na srpskom
+      const match = text.match(/(\d+)\s*(komad|kom|kg|g|litar|litra|l)?/i);
+      if (match) return parseInt(match[1]) || 1;
+      
+      // Provera reči za količinu
+      const lowercase = text.toLowerCase();
+      if(lowercase.includes("dva") || lowercase.includes("dve")) return 2;
+      if(lowercase.includes("tri")) return 3;
+      if(lowercase.includes("pet")) return 5;
+      if(lowercase.includes("deset")) return 10;
+      
+      return 1;
+    }
+
+    function processDirectCommand(text) {
+      // Rezervni plan pretrage ako nema interneta ili ključa
+      const tokens = text.toLowerCase().split(' ');
+      let bestProduct = null;
+      let maxScore = 0;
+
+      products.forEach(p => {
+        let score = 0;
+        if(text.toLowerCase().includes(p.name.toLowerCase())) score += 10;
+        p.keywords.forEach(kw => {
+          if(tokens.some(token => token.includes(kw) || kw.includes(token))) score += 2;
+        });
+        if(score > maxScore) { maxScore = score; bestProduct = p; }
+      });
+
+      if(bestProduct && maxScore > 0) {
+        let quantity = extractQuantityFromText(text);
+        addDynamicToCart(bestProduct.id, quantity);
+      } else {
+        speakAndShow("Izvini, nisam uspela da pronađem traženu namirnicu u katalogu.");
+      }
+    }
+
+    // --- RENDER INTERFEJSA I RAD SA KORPOM ---
+    function renderFrequent() {
+      const grid = document.getElementById('frequentGrid');
+      grid.innerHTML = "";
+      
+      frequentIds.forEach(id => {
+        const p = products.find(prod => prod.id === id);
+        if(!p) return;
+
+        const customImg = localStorage.getItem(`p_img_${id}`);
+        let visualElement = `<span class="text-2xl block mb-1">${p.emoji || "📦"}</span>`;
+        if(customImg) {
+          visualElement = `<img src="${customImg}" class="w-10 h-10 object-cover rounded-xl mx-auto mb-1 border border-white/10" alt="">`;
+        }
+
+        const div = document.createElement('div');
+        div.className = "skeuo-panel p-2.5 text-center relative flex flex-col justify-between";
+        div.innerHTML = `
+          <button onclick="removeIdFromFrequent(${p.id})" class="absolute top-1 right-1 text-[10px] text-gray-500 hover:text-white px-1">×</button>
+          <div onclick="addDynamicToCart(${p.id}, 1)" class="cursor-pointer active:opacity-70 flex-1 flex flex-col justify-center">
+            ${visualElement}
+            <p class="text-[11px] font-bold truncate leading-tight">${p.name}</p>
+            <p class="text-[10px] text-pink-400 font-mono mt-0.5">${p.price} RSD</p>
+          </div>
+          <button onclick="openEditEmoji(${p.id}, '${p.name}', '${p.emoji}')" class="mt-1.5 text-[9px] uppercase text-gray-400 bg-black/30 py-0.5 rounded-md font-semibold hover:text-white">Izgled</button>
+        `;
+        grid.appendChild(div);
+      });
+    }
+
+    function performSearch(query) {
+      const resultsContainer = document.getElementById('searchResults');
+      resultsContainer.innerHTML = "";
+      if(!query.trim()) return;
+
+      const filtered = products.filter(p => 
+        p.name.toLowerCase().includes(query.toLowerCase()) || 
+        p.keywords.some(k => k.toLowerCase().includes(query.toLowerCase()))
+      );
+
+      filtered.slice(0, 15).forEach(p => {
+        const div = document.createElement('div');
+        div.className = "skeuo-panel p-3 flex items-center justify-between";
+        div.innerHTML = `
+          <div class="flex items-center gap-3">
+            <span class="text-xl">${p.emoji || "📦"}</span>
+            <div>
+              <p class="text-sm font-bold">${p.name}</p>
+              <p class="text-xs text-gray-400 font-mono">${p.price} RSD</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="addIdToFrequent(${p.id})" class="skeuo-btn text-xs px-2.5 py-1.5 rounded-lg text-gray-300">📌 Na ekran</button>
+            <button onclick="addDynamicToCart(${p.id}, 1)" class="skeuo-btn text-xs px-3 py-1.5 rounded-lg font-bold neon-text">🛒 Dodaj</button>
+          </div>
+        `;
+        resultsContainer.appendChild(div);
+      });
+    }
+
+    function addIdToFrequent(id) {
+      if(!frequentIds.includes(id)) {
+        frequentIds.push(id);
+        localStorage.setItem('frequentIds', JSON.stringify(frequentIds));
+        renderFrequent();
+        speakAndShow("Dodato na ekran.");
+      }
+    }
+
+    function addDynamicToCart(productId, qty) {
+      const p = products.find(prod => prod.id === productId);
+      if(!p) return;
+
+      const existing = cart.find(item => item.id === productId);
+      if(existing) {
+        existing.quantity += qty;
+      } else {
+        cart.push({ id: p.id, displayName: p.name, price: p.price, emoji: p.emoji, quantity: qty });
+      }
+
+      recalculateTotal();
+      speakAndShow(`Dodato: ${qty} x ${p.name}`);
+    }
+
+    let total = 0;
+    function recalculateTotal() {
+      const list = document.getElementById('cartItemsList');
+      list.innerHTML = "";
+      total = 0;
+
+      cart.forEach((item, index) => {
+        let itemSum = item.price * item.quantity;
+        total += itemSum;
+
+        const div = document.createElement('div');
+        div.className = "skeuo-panel p-3 flex items-center justify-between";
+        div.innerHTML = `
+          <div class="flex items-center gap-2">
+            <span class="text-lg">${item.emoji || "📦"}</span>
+            <div>
+              <p class="text-xs font-bold">${item.displayName}</p>
+              <p class="text-[11px] text-gray-400">${item.quantity} x ${item.price} RSD</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="font-mono text-xs font-bold mr-1">${itemSum} RSD</span>
+            <button onclick="removeFromCart(${index})" class="text-red-400 bg-red-950/30 px-2 py-1 rounded-lg text-xs font-bold">Ukloni</button>
+          </div>
+        `;
+        list.appendChild(div);
+      });
+
+      document.getElementById('subtotalPrice').textContent = total.toLocaleString('sr-RS') + " RSD";
+      document.getElementById('totalPrice').textContent = total.toLocaleString('sr-RS') + " RSD";
+      
+      // Ažuriranje brojača na dnu navigacije
+      const count = cart.reduce((acc, curr) => acc + curr.quantity, 0);
+      document.getElementById('cartCountBadge').textContent = `${count} artikala`;
+      
+      const badge = document.getElementById('cartBadgeCount');
+      if(count > 0) {
+        badge.textContent = count;
+        badge.classList.remove('hidden');
+      } else {
+        badge.classList.add('hidden');
+      }
+    }
+
+    function renderModalList() {
+      const box = document.getElementById('modalCatalogList');
+      box.innerHTML = "";
+      products.forEach(p => {
+        const div = document.createElement('div');
+        div.className = "flex items-center justify-between p-2 border-b border-gray-800 text-sm";
+        div.innerHTML = `
+          <span>${p.emoji || "📦"} <b>${p.name}</b> (${p.price} RSD)</span>
+          <button onclick="addIdToFrequent(${p.id}); closeAddModal();" class="skeuo-btn text-xs px-2.5 py-1 rounded-lg">📌 Izaberi</button>
+        `;
+        box.appendChild(div);
+      });
+    }
+
+    // --- SVE POPRAVLJENE I DOPUNJENE FUNKCIJE SA KRAJA FAJLA ---
+    async function processAiVoiceCommand(text) {
+      if (!groqApiKey) {
+        speakAndShow("Nedostaje Groq API ključ u podešavanjima.");
+        processDirectCommand(text);
+        return;
+      }
+
+      // Pripremamo uprošćenu bazu artikala za LLM kako bismo uštedeli tokene
+      const simplifiedDb = products.map(p => ({ id: p.id, name: p.name, keywords: p.keywords }));
+
+      try {
+        const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${groqApiKey}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            model: "llama3-8b-8192",
+            temperature: 0.1,
+            response_format: { type: "json_object" },
+            messages: [
+              {
+                role: "system",
+                content: "Analiziraj tekst korisnika na srpskom jeziku i mapiraj ga na artikl iz baze podataka. Vrati isključivo JSON objekat sa ključevima: 'productId' (broj, ID artikla ili null ako nema poklapanja) i 'quantity' (broj, tražena količina, podrazumevano 1)."
+              },
+              {
+                role: "user",
+                content: `Baza artikala: ${JSON.stringify(simplifiedDb)}\n\nKorisnik je rekao: "${text}"`
+              }
+            ]
+          })
+        });
+
+        const data = await response.json();
+        const aiResult = JSON.parse(data.choices[0].message.content);
+
+        if (aiResult && aiResult.productId) {
+          let quantity = aiResult.quantity || extractQuantityFromText(text);
+          addDynamicToCart(aiResult.productId, quantity);
+        } else {
+          processDirectCommand(text);
+        }
+      } catch (error) {
+        console.error("Groq AI Greška:", error);
+        processDirectCommand(text);
+      }
+    }
+
+    function checkout() {
+      if (cart.length === 0) {
+        speakAndShow("Korpa je prazna.");
+        return;
+      }
+      monthlySpent += total;
+      localStorage.setItem('monthlySpentTotal', monthlySpent);
+      refreshBudgetUI();
+      
+      speakAndShow(`Kupovina uspešna! Potrošeno je ${total} dinara.`);
+      cart = [];
+      recalculateTotal();
+      switchTab(0);
+    }
+
+    function openEditEmoji(id, name, currentEmoji) {
+      editingProductId = id;
+      document.getElementById('editItemName').textContent = name;
+      document.getElementById('newEmojiInput').value = localStorage.getItem(`p_img_${id}`) ? "" : currentEmoji;
+      document.getElementById('editEmojiModal').style.display = 'flex';
+    }
+
+    function closeEditEmojiModal() {
+      document.getElementById('editEmojiModal').style.display = 'none';
+      editingProductId = null;
+    }
+
+    function saveCustomEmoji() {
+      const newEmoji = document.getElementById('newEmojiInput').value.trim();
+      if (newEmoji && editingProductId) {
+        let pIndex = products.findIndex(p => p.id === editingProductId);
+        if (pIndex !== -1) {
+          products[pIndex].emoji = newEmoji;
+          products[pIndex].isImage = false;
+          localStorage.removeItem(`p_img_${editingProductId}`); // Briše staru sliku ako se unosi emoji
+          renderFrequent();
+          closeEditEmojiModal();
+          speakAndShow("Izgled uspešno sačuvan!");
+        }
+      }
+    }
+
+    function removeIdFromFrequent(id) {
+      frequentIds = frequentIds.filter(fId => fId !== id);
+      localStorage.setItem('frequentIds', JSON.stringify(frequentIds));
+      renderFrequent();
+    }
+
+    function openAddModal() {
+      document.getElementById('addModal').style.display = 'flex';
+      renderModalList();
+    }
+
+    function closeAddModal() {
+      document.getElementById('addModal').style.display = 'none';
+    }
+
+    function removeFromCart(index) {
+      const removedItemName = cart[index].displayName;
+      cart.splice(index, 1);
+      recalculateTotal();
+      speakAndShow("Uklonjeno.");
+    }
+
+    function switchTab(index) {
+      const tabs = ['tab-home', 'tab-search', 'tab-cart', 'tab-profile'];
+      tabs.forEach((tabId, idx) => {
+        const el = document.getElementById(tabId);
+        const btn = document.querySelectorAll('#mainNavbar .nav-btn')[idx];
+        if (idx === index) {
+          el.classList.add('active');
+          if(btn) btn.classList.add('opacity-100'), btn.classList.remove('opacity-50');
+        } else {
+          el.classList.remove('active');
+          if(btn) btn.classList.remove('opacity-100'), btn.classList.add('opacity-50');
+        }
+      });
+      if(index === 1) setTimeout(() => document.getElementById('searchInput').focus(), 150);
+    }
+
+    function speakAndShow(message) {
+      console.log(`GroceryAI: ${message}`);
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(message);
+        utterance.lang = 'sr-RS';
+        window.speechSynthesis.speak(utterance);
+      }
+    }
+
+    function clearAllCustomizations() {
+      if(confirm("Da li želiš da resetuješ sve boje, avatar, pozadinu i podešavanja ekrana?")) {
+        localStorage.clear();
+        location.reload();
+      }
+    }
+
+    // --- PODRAZUMEVANO INICIJALIZOVANJE PODATAKA IZ Skladišta (localStorage) ---
+    window.addEventListener('DOMContentLoaded', () => {
+      if (localStorage.getItem('frequentIds')) {
+        try { frequentIds = JSON.parse(localStorage.getItem('frequentIds')); } catch(e){}
+      }
+
+      document.documentElement.style.setProperty('--text-color', appTextColor);
+      document.getElementById('textColorPicker').value = appTextColor;
+      document.getElementById('bgColorPicker').value = appComponentBg;
+      document.getElementById('borderColorPicker').value = appComponentBorder;
+      
+      updateNeonHue(savedHue);
+      updateGridCols(savedCols);
+      updateAvatarWidth(savedAvW);
+      updateAvatarHeight(savedAvH);
+      updateNavHeight(savedNavH);
+      updateNavIconSize(savedNavSize);
+      updateMicSize(savedMicSize);
+      updateOpacity(customOpacity);
+      refreshBudgetUI();
+
+      document.getElementById('groqKeyInput').value = groqApiKey;
+      document.getElementById('simpleModeToggle').checked = isSimpleMode;
+
+      if (savedBgData) {
+        const bgEl = document.getElementById('bgImageElement');
+        bgEl.src = savedBgData;
+        bgEl.style.display = 'block';
+      }
+
+      const savedAv = localStorage.getItem('customAvatarIcon');
+      if (savedAv) document.getElementById('avatarImg').src = savedAv;
+
+      renderFrequent();
+      recalculateTotal();
+    });
+
+    // --- DUGME ZA DRAG / PREVLAČENJE AVATARA PO EKRANU ---
+    const avBox = document.getElementById('avatarContainer');
+    let isDraggingAv = false; let startX, startY;
+    
+    avBox.addEventListener('mousedown', (e) => { if(e.target.tagName !== 'BUTTON') startDrag(e.clientX, e.clientY); });
+    avBox.addEventListener('touchstart', (e) => { window._avDragged = false; if(e.target.tagName !== 'BUTTON') startDrag(e.touches[0].clientX, e.touches[0].clientY); }, {passive: true});
+    
+    function startDrag(cx, cy) {
+      isDraggingAv = true; window._avDragged = false;
+      startX = cx - avBox.offsetLeft; startY = cy - avBox.offsetTop;
+      avBox.style.cursor = 'grabbing';
+    }
+    
+    window.addEventListener('mousemove', (e) => { doDrag(e.clientX, e.clientY); });
+    window.addEventListener('touchmove', (e) => { if(e.touches && e.touches.length) doDrag(e.touches[0].clientX, e.touches[0].clientY); }, {passive: false});
+    
+    function doDrag(cx, cy) {
+      if (!isDraggingAv) return;
+      window._avDragged = true;
+      let left = cx - startX; let top = cy - startY;
+      
+      left = Math.max(0, Math.min(window.innerWidth - avBox.offsetWidth, left));
+      top = Math.max(0, Math.min(window.innerHeight - avBox.offsetHeight, top));
+      
+      avBox.style.left = left + 'px';
+      avBox.style.top = top + 'px';
+      avBox.style.right = 'auto';
+    }
+    
+    window.addEventListener('mouseup', () => { isDraggingAv = false; avBox.style.cursor = 'grab'; });
+    window.addEventListener('touchend', () => { isDraggingAv = false; avBox.style.cursor = 'grab'; });
+  </script>
+</body>
+</html>
