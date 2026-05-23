@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="sr" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>GroceryAI • Premium Glassmorphism</title>
+  
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#09090b">
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <style>
+    body { 
+      font-family: system-ui, -apple-system, sans-serif; 
+      overflow: hidden; 
+      touch-action: manipulation;
+      background-color: #09090b;
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      transition: background-image 0.3s ease;
+    }
+    
+    /* Dinamički Glassmorphism sa promenljivom providnošću i 3D efektom */
+    .glass { 
+      background: var(--glass-bg, rgba(15, 23, 42, 0.45)); 
+      backdrop-filter: blur(25px); 
+      -webkit-backdrop-filter: blur(25px);
+      border: 1px solid rgba(255, 255, 255, 0.15); 
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4), inset 0 1px 2px rgba(255, 255, 255, 0.2);
+      border-radius: 24px;
+    }
+    
+    .neon { box-shadow: 0 0 25px #22d3ee, 0 0 45px #c026d3; }
+    .avatar-float { animation: float 4s ease-in-out infinite; }
+    @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+    
+    .mic-pulse { animation: pulse 2.5s infinite; box-shadow: 0 0 15px rgba(34, 211, 238, 0.4), 0 0 30px rgba(192, 38, 211, 0.4); }
+    @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.08); box-shadow: 0 0 25px #22d3ee, 0 0 50px #c026d3; } 100% { transform: scale(1); } }
+    
+    .tab-content { display: none; height: calc(100vh - 130px); }
+    .tab-content.active { display: flex; flex-direction: column; justify-content: space-between; }
+    
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body class="text-white min-h-screen select-none pb-28">
+
+  <div class="max-w-xl mx-auto px-4 pt-4 h-full flex flex-col justify-between">
+
+    <div id="tab-home" class="tab-content active">
+      <div class="flex gap-3 items-center mb-4 justify-between glass p-4 relative h-52 shrink-0">
+        <div class="flex flex-col justify-between h-full py-1 flex-1">
+          <h1 class="text-xl font-bold bg-gradient-to-r from-cyan-400 to-purple-500 bg-clip-text text-transparent">GroceryAI</h1>
+          <div>
+            <h2 class="text-2xl font-bold leading-snug text-gray-100">Zdravo,<br>Sasša!</h2>
+            <p class="text-xs text-cyan-400 mt-1 font-semibold">Tvoje namirnice</p>
+          </div>
+        </div>
+        <img id="avatarImg" src="https://picsum.photos/id/1015/600/600" 
+             class="w-40 h-44 rounded-2xl object-cover avatar-float neon border-2 border-cyan-400/60 cursor-pointer self-center" 
+             alt="Avatar" onclick="switchTab(3)">
+      </div>
+
+      <div class="flex-1 overflow-y-auto no-scrollbar pr-1 pb-10">
+        <div class="grid grid-cols-4 gap-2.5" id="frequentGrid"></div>
+      </div>
+    </div>
+
+    <div id="tab-search" class="tab-content">
+      <div class="flex flex-col h-full pt-2">
+        <h1 class="text-xl font-bold bg-gradient-to-r from-cyan-400 to-purple-500 bg-clip-text text-transparent mb-3">GroceryAI</h1>
+        <input type="text" id="searchInput" oninput="filterProducts()" placeholder="Unesi naziv namirnice..." class="w-full glass rounded-2xl px-4 py-3.5 text-sm mb-4 outline-none border border-cyan-500/30 text-white placeholder-gray-400">
+        <div class="grid grid-cols-4 gap-2.5 overflow-y-auto no-scrollbar flex-1 pb-10" id="searchGrid"></div>
+      </div>
+    </div>
+
+    <div id="tab-cart" class="tab-content pt-2">
+      <h1 class="text-xl font-bold bg-gradient-to-r from-cyan-400 to-purple-500 bg-clip-text text-transparent mb-2">GroceryAI</h1>
+      <h3 class="text-base font-semibold mb-3 ml-1">Tvoja korpa <span id="cart-count" class="text-cyan-400">(0)</span></h3>
+      <div id="cart" class="glass rounded-2xl p-4 space-y-2 flex-1 overflow-y-auto no-scrollbar mb-4"></div>
+      <div class="flex justify-between items-center glass p-4 mb-8">
+        <div>
+          <p class="text-xs text-gray-400 font-medium">Ukupno za uplatu</p>
+          <p id="total" class="text-2xl font-black text-cyan-400">0 RSD</p>
+        </div>
+        <button onclick="checkout()" class="bg-gradient-to-r from-cyan-500 to-purple-600 px-7 py-3.5 rounded-xl font-bold text-sm shadow-lg shadow-purple-500/20">Završi</button>
+      </div>
+    </div>
+
+    <div id="tab-profile" class="tab-content pt-2">
+      <h1 class="text-xl font-bold bg-gradient-to-r from-cyan-400 to-purple-500 bg-clip-text text-transparent mb-2">GroceryAI</h1>
+      <div class="glass rounded-2xl p-4 overflow-y-auto no-scrollbar flex-1 space-y-5 mb-8">
+        
+        <div>
+          <h2 class="text-base font-bold text-cyan-400 border-b border-white/10 pb-1 mb-3">🎨 Kontrola Providnosti (Glassmorphic)</h2>
+          <label class="text-xs text-gray-300 block mb-1">Podesi nivo providnosti stakla:</label>
+          <input type="range" id="opacitySlider" min="0" max="100" value="45" oninput="updateOpacity(this.value)" class="w-full accent-cyan-400 bg-white/10 h-2 rounded-lg appearance-none cursor-pointer">
+        </div>
+
+        <div>
+          <h2 class="text-base font-bold text-cyan-400 border-b border-white/10 pb-1 mb-3">🖼️ Pozadina Aplikacije</h2>
+          <button onclick="document.getElementById('bgUpload').click()" class="w-full bg-slate-800 border border-white/20 py-3 rounded-xl text-xs font-semibold text-white hover:bg-slate-700 transition-all">
+            📸 Izaberi sliku iz memorije telefona
+          </button>
+          <input type="file" id="bgUpload" accept="image/*" class="hidden" onchange="changeAppBackground(this)">
+        </div>
+
+        <div>
+          <h2 class="text-base font-bold text-cyan-400 border-b border-white/10 pb-1 mb-3">⌨️ Izgled Donje Tastature (Navigacije)</h2>
+          <p class="text-[11px] text-gray-400 mb-2">Zameni trenutne ikonice novim simbolima ili 3D emojijima:</p>
+          <div class="grid grid-cols-5 gap-1.5">
+            <input type="text" id="nav-i-0" placeholder="🏠" class="glass bg-white/5 p-2 rounded-xl text-center text-sm border border-white/10 outline-none">
+            <input type="text" id="nav-i-1" placeholder="🔍" class="glass bg-white/5 p-2 rounded-xl text-center text-sm border border-white/10 outline-none">
+            <input type="text" id="nav-i-2" placeholder="🎤" class="glass bg-white/5 p-2 rounded-xl text-center text-sm border border-white/10 outline-none">
+            <input type="text" id="nav-i-3" placeholder="🛒" class="glass bg-white/5 p-2 rounded-xl text-center text-sm border border-white/10 outline-none">
+            <input type="text" id="nav-i-4" placeholder="👤" class="glass bg-white/5 p-2 rounded-xl text-center text-sm border border-white/10 outline-none">
+          </div>
+          <button onclick="saveNavIcons()" class="w-full bg-cyan-600 py-2.5 rounded-xl text-xs font-bold mt-2 hover:bg-cyan-500 transition-all">Sačuvaj Nove Ikonice Navigacije</button>
+        </div>
+
+        <div>
+          <h2 class="text-base font-bold text-cyan-400 border-b border-white/10 pb-1 mb-3">👤 Podešavanja Profila i Sistema</h2>
+          <div class="flex gap-4 items-center mb-3">
+            <img id="profileAvatar" src="https://picsum.photos/id/1015/600/600" class="w-16 h-16 rounded-xl object-cover border border-white/20 cursor-pointer" onclick="document.getElementById('avatarUpload').click()">
+            <button onclick="document.getElementById('avatarUpload').click()" class="flex-1 bg-white/5 border border-white/10 py-2 rounded-xl text-xs font-medium">Promeni avatar</button>
+          </div>
+          <input type="file" id="avatarUpload" accept="image/*" class="hidden" onchange="changeAvatar(this)">
+          <input type="file" id="micUpload" accept="image/*" class="hidden" onchange="changeMicIcon(this)">
+          
+          <button onclick="document.getElementById('micUpload').click()" class="w-full bg-slate-800 border border-dashed border-cyan-500 py-2.5 rounded-xl text-xs font-medium text-cyan-400 mb-2">🖼️ Ubaci sliku mikrofona</button>
+          <button onclick="clearAllCustomizations()" class="w-full bg-red-950/40 border border-red-500/30 py-2 rounded-xl text-xs font-medium text-red-400">Resetuj sva podešavanja na fabrička</button>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <nav class="fixed bottom-0 left-0 right-0 glass border-t border-white/10 py-3.5 z-50 h-24 flex items-center rounded-t-[32px] rounded-b-none">
+    <div class="max-w-xl mx-auto flex w-full justify-around items-center relative px-2">
+      <button onclick="switchTab(0)" id="nav-btn-0" class="nav-btn active opacity-100 text-3xl pb-2 transition-all">🏠</button>
+      <button onclick="switchTab(1)" id="nav-btn-1" class="nav-btn opacity-50 text-3xl pb-2 transition-all">🔍</button>
+      
+      <div class="relative -top-6 z-50">
+        <button onclick="startVoiceRecognition()" class="nav-btn mic-container mic-pulse flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-tr from-cyan-500 to-purple-600 border-2 border-white/20 text-white">
+          <span id="nav-btn-2" class="mic-icon text-3xl flex items-center justify-center w-full h-full">🎤</span>
+        </button>
+      </div>
+      
+      <button onclick="switchTab(2)" id="nav-btn-3" class="nav-btn opacity-50 text-3xl pb-2 transition-all">🛒</button>
+      <button onclick="switchTab(3)" id="nav-btn-4" class="nav-btn opacity-50 text-3xl pb-2 transition-all">👤</button>
+    </div>
+  </nav>
+
+  <div id="editEmojiModal" class="fixed inset-0 bg-black/80 z-50 hidden items-center justify-center p-4">
+    <div class="glass rounded-3xl p-5 w-full max-w-sm border border-white/20">
+      <h3 class="text-base font-bold mb-1 text-cyan-400">Izmeni izgled namirnice</h3>
+      <p class="text-xs text-gray-400 mb-3" id="editItemName"></p>
+      <div class="space-y-3">
+        <div>
+          <label class="text-xs text-gray-300 block mb-1">Unesi novi 3D Emoji ili znak:</label>
+          <input type="text" id="newEmojiInput" class="w-full glass bg-white/5 rounded-xl px-3 py-2 text-center text-2xl outline-none border border-white/10">
+        </div>
+        <div class="flex gap-2 pt-2">
+          <button onclick="closeEditEmojiModal()" class="flex-1 bg-slate-800 py-2.5 rounded-xl text-xs font-semibold">Otkaži</button>
+          <button onclick="saveCustomEmoji()" class="flex-1 bg-cyan-600 py-2.5 rounded-xl text-xs font-bold">Sačuvaj</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="addModal" class="fixed inset-0 bg-black/80 z-50 hidden items-center justify-center p-4">
+    <div class="glass rounded-3xl p-4 w-full max-w-sm">
+      <h3 class="text-base font-bold mb-3">Dodaj na početni ekran</h3>
+      <div id="modalList" class="space-y-1 max-h-60 overflow-y-auto no-scrollbar mb-4"></div>
+      <button onclick="closeAddModal()" class="w-full bg-slate-800 py-2 rounded-xl text-xs font-semibold">Zatvori</button>
+    </div>
+  </div>
+
+  <script>
+    let customOpacity = localStorage.getItem('glassOpacity') || '45';
+    let savedBgData = localStorage.getItem('appBackgroundImg') || '';
+    let customMicDataUrl = localStorage.getItem('customMicIcon') || null;
+    let customAvatarDataUrl = localStorage.getItem('customAvatarIcon') || null; 
+    
+    let navIcons = JSON.parse(localStorage.getItem('customNavIcons')) || ['🏠', '🔍', '🎤', '🛒', '👤'];
+    let cart = JSON.parse(localStorage.getItem('savedCart')) || [];
+    let total = 0;
+    let editingProductId = null;
+
+    let products = JSON.parse(localStorage.getItem('productsDatabase')) || [
+      { id: 1, name: "Mleko", basePrice: 98, emoji: "🥛", unit: "L", keywords: ["mlek", "mljek"] },
+      { id: 2, name: "Banane", basePrice: 95, emoji: "🍌", unit: "kg", keywords: ["banan"] },
+      { id: 3, name: "Jaja", basePrice: 18, emoji: "🥚", unit: "kom", keywords: ["jaj", "jai"] },
+      { id: 4, name: "Krompir", basePrice: 60, emoji: "🥔", unit: "kg", keywords: ["krompir", "krumpir"] },
+      { id: 5, name: "Jabuke", basePrice: 89, emoji: "🍎", unit: "kg", keywords: ["jabuk"] },
+      { id: 6, name: "Piletina", basePrice: 489, emoji: "🍗", unit: "kg", keywords: ["pilet", "pile", "belo meso"] },
+      { id: 7, name: "Šećer", basePrice: 95, emoji: "🧂", unit: "kg", keywords: ["šećer", "secer"] },
+      { id: 8, name: "Keks", basePrice: 89, emoji: "🍪", unit: "kom", keywords: ["keks", "plazma"] },
+      { id: 9, name: "Brašno", basePrice: 75, emoji: "🌾", unit: "kg", keywords: ["brašn", "brasn"] },
+      { id: 10, name: "Mandarine", basePrice: 160, emoji: "🍊", unit: "kg", keywords: ["mandarin"] },
+      { id: 11, name: "Hleb", basePrice: 54, emoji: "🍞", unit: "kom", keywords: ["hleb", "hljeb", "kruh"] },
+      { id: 12, name: "Ulje", basePrice: 175, emoji: "🌻", unit: "L", keywords: ["ulje", "zejtin"] },
+      { id: 13, name: "Kafa", basePrice: 240, emoji: "☕", unit: "kom", keywords: ["kaf", "grand"] },
+      { id: 14, name: "Jagode", basePrice: 320, emoji: "🍓", unit: "kg", keywords: ["jagod"] },
+      { id: 15, name: "Hrana za mačke", basePrice: 85, emoji: "🐈", unit: "kom", keywords: ["viskas", "macke", "gourmet"] }
+    ];
+
+    let frequentIds = JSON.parse(localStorage.getItem('frequentIds')) || [1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 13];
+
+    const serbianNumbers = {
+      "jedan": 1, "jedno": 1, "jedna": 1, "kilo": 1, "kilogram": 1, "litar": 1, "litra": 1,
+      "dva": 2, "dve": 2, "tri": 3, "četiri": 4, "pet": 5
+    };
+
+    function speakAndShow(textMessage, runVoice = true) {
+      const toast = document.createElement('div');
+      toast.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:rgba(15,23,42,0.9);color:white;padding:14px 24px;border-radius:20px;border:1px solid #22d3ee;z-index:1000;box-shadow: 0 10px 30px rgba(0,0,0,0.6);text-align:center;max-width:90%;font-size:13px;font-weight:600;backdrop-filter:blur(10px);';
+      toast.textContent = textMessage;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 3000);
+
+      if (runVoice && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const cleanPhrase = textMessage.replace(/[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDC00-\uDFFF]/g, "");
+        const utterance = new SpeechSynthesisUtterance(cleanPhrase);
+        utterance.lang = 'sr-RS';
+        window.speechSynthesis.speak(utterance);
+      }
+    }
+
+    function updateOpacity(val) {
+      customOpacity = val;
+      localStorage.setItem('glassOpacity', val);
+      let alpha = val / 100;
+      document.documentElement.style.setProperty('--glass-bg', `rgba(9, 9, 11, ${alpha})`);
+      document.getElementById('opacitySlider').value = val;
+    }
+
+    function changeAppBackground(input) {
+      if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = e => {
+          savedBgData = e.target.result;
+          localStorage.setItem('appBackgroundImg', savedBgData);
+          applyLoadedBackground();
+          speakAndShow("Pozadina uspešno promenjena!");
+        };
+        reader.readAsDataURL(input.files[0]);
+      }
+    }
+
+    function applyLoadedBackground() {
+      if (savedBgData) {
+        document.body.style.backgroundImage = `url('${savedBgData}')`;
+      } else {
+        document.body.style.backgroundImage = 'none';
+      }
+    }
+
+    function saveNavIcons() {
+      for(let i=0; i<5; i++) {
+        let val = document.getElementById(`nav-i-${i}`).value.trim();
+        if(val) navIcons[i] = val;
+      }
+      localStorage.setItem('customNavIcons', JSON.stringify(navIcons));
+      applyNavIcons();
+      speakAndShow("Ikonice donje tastature su osvežene!");
+    }
+
+    function applyNavIcons() {
+      document.getElementById('nav-btn-0').textContent = navIcons[0];
+      document.getElementById('nav-btn-1').textContent = navIcons[1];
+      document.getElementById('nav-btn-3').textContent = navIcons[3];
+      document.getElementById('nav-btn-4').textContent = navIcons[4];
+      
+      document.getElementById('nav-i-0').placeholder = navIcons[0];
+      document.getElementById('nav-i-1').placeholder = navIcons[1];
+      document.getElementById('nav-i-2').placeholder = navIcons[2];
+      document.getElementById('nav-i-3').placeholder = navIcons[3];
+      document.getElementById('nav-i-4').placeholder = navIcons[4];
+
+      applyMicIcons();
+    }
+
+    function switchTab(tab) {
+      const tabs = ['tab-home', 'tab-search', 'tab-cart', 'tab-profile'];
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.nav-btn').forEach((el, i) => {
+        if(i !== 2) {
+          el.classList.toggle('active', i === tab);
+          el.style.opacity = i === tab ? "1" : "0.5";
+        }
+      });
+      const targetTab = document.getElementById(tabs[tab]);
+      if(targetTab) targetTab.classList.add('active');
+    }
+
+    function changeAvatar(input) {
+      if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = e => {
+          customAvatarDataUrl = e.target.result;
+          localStorage.setItem('customAvatarIcon', customAvatarDataUrl); 
+          applyAvatar();
+          speakAndShow("Avatar je sačuvan!");
+        };
+        reader.readAsDataURL(input.files[0]);
+      }
+    }
+
+    function applyAvatar() {
+      if (customAvatarDataUrl) {
+        document.getElementById('avatarImg').src = customAvatarDataUrl;
+        document.getElementById('profileAvatar').src = customAvatarDataUrl;
+      }
+    }
+
+    function changeMicIcon(input) {
+      if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = e => {
+          customMicDataUrl = e.target.result;
+          localStorage.setItem('customMicIcon', customMicDataUrl);
+          applyMicIcons();
+          speakAndShow("Slika mikrofona zamenjena!");
+        };
+        reader.readAsDataURL(input.files[0]);
+      }
+    }
+
+    function applyMicIcons() {
+      const micElement = document.getElementById('nav-btn-2');
+      if (customMicDataUrl) {
+        micElement.innerHTML = `<img src="${customMicDataUrl}" class="w-full h-full object-cover rounded-full" alt="Mic" />`;
+      } else {
+        micElement.textContent = navIcons[2];
+      }
+    }
+
+    function openEditEmoji(id, name, currentEmoji) {
+      editingProductId = id;
+      document.getElementById('editItemName').textContent = name;
+      document.getElementById('newEmojiInput').value = currentEmoji;
+      document.getElementById('editEmojiModal').style.display = 'flex';
+    }
+
+    function closeEditEmojiModal() {
+      document.getElementById('editEmojiModal').style.display = 'none';
+    }
+
+    function saveCustomEmoji() {
+      let val = document.getElementById('newEmojiInput').value.trim();
+      if(!val) val = "📦";
+      
+      let pIndex = products.findIndex(p => p.id === editingProductId);
+      if(pIndex !== -1) {
+        products[pIndex].emoji = val;
+        localStorage.setItem('productsDatabase', JSON.stringify(products));
+        renderFrequent();
+        filterProducts();
+        recalculateTotal();
+        closeEditEmojiModal();
+        speakAndShow("Izgled namirnice promenjen!");
+      }
+    }
+
+    function renderFrequent() {
+      const container = document.getElementById('frequentGrid');
+      container.innerHTML = '';
+      
+      products.forEach((p) => {
+        if (frequentIds.includes(p.id)) {
+          const div = document.createElement('div');
+          div.className = 'glass p-2.5 text-center cursor-pointer flex flex-col justify-between items-center h-28 relative group transition-all duration-300 transform active:scale-95';
+          div.onclick = () => addDynamicToCart(p.id, 1);
+          div.innerHTML = `
+            <button onclick="removeIdFromFrequent(${p.id}); event.stopPropagation();" class="absolute top-1 right-2 text-gray-400 hover:text-red-400 text-sm font-bold p-0.5 transition-colors">×</button>
+            <div onclick="openEditEmoji(${p.id}, '${p.name}', '${p.emoji}'); event.stopPropagation();" class="text-4xl my-auto select-none filter drop-shadow-[0_6px_8px_rgba(0,0,0,0.5)] hover:scale-110 transition-transform" title="Klikni da promeniš sliku namirnice">${p.emoji}</div>
+            <div class="w-full">
+              <p class="font-bold text-[11px] truncate text-gray-200">${p.name}</p>
+              <p class="text-cyan-400 font-extrabold text-[10px]">${p.basePrice} RSD</p>
+            </div>
+          `;
+          container.appendChild(div);
+        }
+      });
+
+      const addBtn = document.createElement('div');
+      addBtn.className = 'glass p-2 text-center cursor-pointer flex items-center justify-center h-28 border border-dashed border-cyan-500/40 hover:border-cyan-400 transition-all';
+      addBtn.onclick = () => openAddModal();
+      addBtn.innerHTML = `<span class="text-3xl text-cyan-400/70">➕</span>`;
+      container.appendChild(addBtn);
+    }
+
+    function removeIdFromFrequent(id) {
+      frequentIds = frequentIds.filter(fId => fId !== id);
+      localStorage.setItem('frequentIds', JSON.stringify(frequentIds));
+      renderFrequent();
+    }
+
+    function openAddModal() {
+      const modal = document.getElementById('addModal');
+      const list = document.getElementById('modalList');
+      list.innerHTML = '';
+      
+      products.forEach(p => {
+        if (!frequentIds.includes(p.id)) {
+          const div = document.createElement('div');
+          div.className = 'flex justify-between items-center p-2.5 bg-white/5 rounded-xl border border-white/5 cursor-pointer hover:bg-cyan-500/20 mb-1.5';
+          div.onclick = () => {
+            frequentIds.push(p.id);
+            localStorage.setItem('frequentIds', JSON.stringify(frequentIds));
+            renderFrequent();
+            closeAddModal();
+          };
+          div.innerHTML = `<span class="text-sm">${p.emoji} ${p.name}</span> <span class="text-xs text-cyan-400 font-bold">Dodaj</span>`;
+          list.appendChild(div);
+        }
+      });
+      modal.style.display = 'flex';
+    }
+
+    function closeAddModal() { document.getElementById('addModal').style.display = 'none'; }
+
+    function filterProducts() {
+      const query = document.getElementById('searchInput').value.toLowerCase();
+      const container = document.getElementById('searchGrid');
+      container.innerHTML = '';
+      
+      products.forEach((p) => {
+        if(p.name.toLowerCase().includes(query) || p.keywords.some(k => k.includes(query))) {
+          const div = document.createElement('div');
+          div.className = 'glass p-2 text-center flex flex-col justify-between items-center h-26';
+          div.onclick = () => addDynamicToCart(p.id, 1);
+          div.innerHTML = `
+            <div class="text-3xl my-auto">${p.emoji}</div>
+            <div>
+              <p class="font-medium text-[11px] truncate text-gray-200">${p.name}</p>
+              <p class="text-cyan-400 font-bold text-[10px]">${p.basePrice} RSD</p>
+            </div>
+          `;
+          container.appendChild(div);
+        }
+      });
+    }
+
+    function addDynamicToCart(productId, quantity) {
+      const product = products.find(p => p.id === productId);
+      if (!product) return;
+
+      const finalName = `${quantity} ${product.unit} ${product.name}`;
+      const finalPrice = product.basePrice * quantity;
+      const existingIndex = cart.findIndex(item => item.displayName === finalName);
+      
+      if (existingIndex !== -1) {
+         cart[existingIndex].calculatedPrice += finalPrice;
+         cart[existingIndex].countMarker += 1;
+      } else {
+         cart.push({
+           productId: product.id,
+           displayName: finalName,
+           calculatedPrice: finalPrice,
+           emoji: product.emoji,
+           countMarker: 1
+         });
+      }
+      recalculateTotal();
+      speakAndShow(`Dodato: ${product.name}`);
+    }
+
+    function recalculateTotal() {
+      total = cart.reduce((acc, item) => acc + item.calculatedPrice, 0);
+      localStorage.setItem('savedCart', JSON.stringify(cart));
+      renderCart();
+    }
+
+    function renderCart() {
+      const container = document.getElementById('cart');
+      container.innerHTML = '';
+      
+      document.getElementById('cart-count').textContent = `(${cart.length})`;
+      document.getElementById('total').textContent = total + " RSD";
+
+      if(cart.length === 0) {
+        container.innerHTML = `<p class="text-gray-400 text-center pt-12 text-sm font-medium">Tvoja korpa je trenutno prazna.</p>`;
+        return;
+      }
+
+      cart.forEach((item, index) => {
+        const div = document.createElement('div');
+        div.className = "flex justify-between items-center glass p-3.5 text-sm";
+        const multiplierText = item.countMarker > 1 ? ` <span class="text-[11px] text-gray-400 font-normal">(x${item.countMarker})</span>` : '';
+        div.innerHTML = `
+          <span class="flex items-center gap-2.5">
+            <span class="text-2xl">${item.emoji || '🛒'}</span>
+            <span class="font-bold text-gray-100">${item.displayName} ${multiplierText}</span>
+          </span>
+          <div class="flex items-center gap-3">
+            <span class="text-cyan-400 font-black text-sm">${item.calculatedPrice} RSD</span>
+            <button onclick="removeFromCart(${index}); event.stopPropagation();" class="text-red-400 text-xs hover:scale-110 transition-transform">❌</button>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function removeFromCart(index) {
+      cart.splice(index, 1);
+      recalculateTotal();
+    }
+
+    async function startVoiceRecognition() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        speakAndShow("Prepoznavanje glasa nije podržano offline.");
+        return;
+      }
+
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'sr-RS';
+      recognition.interimResults = false;
+      speakAndShow("Slušam te...", false);
+
+      recognition.onresult = (event) => {
+        let text = event.results[0][0].transcript.toLowerCase().trim();
+        if(!text) return;
+        processSimpleLongText(text);
+      };
+      recognition.start();
+    }
+
+    function processSimpleLongText(text) {
+      const cleanText = text.replace(/\b(i|treba|mi|kupi|dodaj|molim|te|sa|od)\b/g, " ");
+      const words = cleanText.split(/\s+/).filter(w => w.length > 0);
+      let addedItemsSummary = [];
+      let pendingQuantity = null;
+
+      for (let i = 0; i < words.length; i++) {
+        const word = words[i];
+        let currentQty = null;
+        if (serbianNumbers[word]) currentQty = serbianNumbers[word];
+        else if (/^\d+$/.test(word)) currentQty = parseInt(word);
+
+        if (currentQty !== null) {
+          pendingQuantity = currentQty;
+          continue;
+        }
+
+        let matchedProduct = products.find(p => p.keywords.some(keyword => word.includes(keyword)));
+        if (matchedProduct) {
+          const finalQty = pendingQuantity !== null ? pendingQuantity : 1;
+          addDynamicToCart(matchedProduct.id, finalQty);
+          addedItemsSummary.push(`${finalQty}x ${matchedProduct.name}`);
+          pendingQuantity = null;
+        }
+      }
+      if (addedItemsSummary.length > 0) speakAndShow(`Upisano: ${addedItemsSummary.join(", ")}`);
+    }
+
+    function checkout() {
+      if (cart.length === 0) return;
+      speakAndShow(`Kupovina uspešna! Ukupno: ${total} RSD.`);
+      cart = []; total = 0; recalculateTotal();
+    }
+
+    function clearAllCustomizations() {
+      localStorage.clear();
+      speakAndShow("Sva podešavanja su resetovana. Osvežavam...");
+      setTimeout(() => location.reload(), 1500);
+    }
+
+    window.onload = () => {
+      updateOpacity(customOpacity);
+      applyLoadedBackground();
+      applyAvatar();    
+      applyNavIcons();
+      renderFrequent();
+      filterProducts();
+      recalculateTotal();
+    };
+  </script>
+</body>
+</html>
