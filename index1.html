@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="sr" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>GroceryAI Premium</title>
+  
+  <link rel="manifest" href="manifest.json">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: system-ui, sans-serif; background-color: #040408; color: #ffffff; height: 100vh; overflow: hidden; }
+  </style>
+</head>
+<body class="flex items-center justify-center h-screen">
+
+  <div class="text-center">
+    <h1 class="text-3xl font-bold">GroceryAI Premium</h1>
+    <p class="mt-4">Tvoja pametna nabavka je spremna.</p>
+  </div>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js')
+        .then(() => console.log('Service Worker registrovan'));
+    }
+  </script>
+</body>
+</html>
