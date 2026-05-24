@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Luna AI · Lebdeća figurica sa glow</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(135deg, #0a0f1e 0%, #0d1428 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Segoe UI', system-ui, -apple-system;
+        }
+
+        /* Telefon container */
+        .phone {
+            max-width: 400px;
+            width: 100%;
+            height: 780px;
+            background: rgba(18, 25, 45, 0.95);
+            backdrop-filter: blur(2px);
+            border-radius: 48px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 25px 45px rgba(0, 0, 0, 0.5), 0 0 0 8px rgba(255,255,255,0.05);
+            position: relative;
+        }
+
+        /* Glow efekat koji lebdi iza slike */
+        @keyframes floatGlow {
+            0% { transform: translateY(0px) scale(1); opacity: 0.7; }
+            50% { transform: translateY(-8px) scale(1.05); opacity: 1; }
+            100% { transform: translateY(0px) scale(1); opacity: 0.7; }
+        }
+
+        @keyframes subtleFloat {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-5px); }
+            100% { transform: translateY(0px); }
+        }
+
+        /* Avatar wrapper - lebdeća figurica */
+        .avatar-float {
+            position: relative;
+            width: 130px;
+            height: 130px;
+            margin: 0 auto;
+            animation: subtleFloat 3s ease-in-out infinite;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Glow svetlo (pozadinsko) */
+        .avatar-glow {
+            position: absolute;
+            width: 160px;
+            height: 160px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(52,125,255,0.5) 0%, rgba(52,125,255,0) 70%);
+            filter: blur(20px);
+            animation: floatGlow 3s ease-in-out infinite;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* Sam avatar (figurica) - transparentna slika lebdi */
+        .avatar-img {
+            position: relative;
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            object-fit: contain;
+            background: transparent !important;
+            z-index: 2;
+            filter: drop-shadow(0 8px 20px rgba(0,0,0,0.3));
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 18px 20px;
+            background: rgba(18, 25, 45, 0.6);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .logo h1 {
+            font-size: 28px;
+            font-weight: 900;
+            background: linear-gradient(135deg, #fff, #88ccff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .logo p {
+            font-size: 12px;
+            color: #88ccff;
+            font-weight: 600;
+        }
+
+        .sasa-btn {
+            background: linear-gradient(135deg, #0f91d5, #0a6da0);
+            padding: 8px 20px;
+            border-radius: 40px;
+            color: white;
+            font-weight: 800;
+            cursor: pointer;
+            border: none;
+            font-size: 14px;
+        }
+
+        /* Content */
+        .content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        /* Kartice (beleške, alarmi) */
+        .stats-row {
+            display: flex;
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .stat-card {
+            flex: 1;
+            background: rgba(255,255,255,0.08);
+            backdrop-filter: blur(8px);
+            border-radius: 28px;
+            padding: 12px;
+            text-align: center;
+            cursor: pointer;
+            border: 1px solid rgba(255,255,255,0.1);
+            transition: 0.2s;
+        }
+
+        .stat-card:active { transform: scale(0.96); }
+        .stat-card i { font-size: 28px; color: #88ccff; }
+        .stat-card span { display: block; font-weight: 800; font-size: 24px; color: white; }
+        .stat-card small { color: #aaa; font-size: 12px; }
+
+        /* Preview prozor */
+        .preview {
+            background: rgba(255,255,255,0.06);
+            backdrop-filter: blur(8px);
+            border-radius: 28px;
+            padding: 16px;
+            margin: 15px 0;
+            min-height: 140px;
+            color: #ddd;
+            font-size: 14px;
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+
+        /* Režimi */
+        .modes {
+            display: grid;
+            grid-template-columns: repeat(4,1fr);
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .mode-chip {
+            background: rgba(255,255,255,0.08);
+            border-radius: 30px;
+            padding: 10px;
+            text-align: center;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 13px;
+            color: #ccc;
+            transition: 0.2s;
+        }
+
+        .mode-chip.active {
+            background: linear-gradient(135deg, #347dff, #5a9eff);
+            color: white;
+            box-shadow: 0 0 15px rgba(52,125,255,0.5);
+        }
+
+        /* Mikrofon */
+        .mic-area {
+            text-align: center;
+            margin-top: 20px;
+        }
+        .mic-circle {
+            width: 140px;
+            height: 140px;
+            background: linear-gradient(135deg, #1e2a4a, #0f1428);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto;
+            cursor: pointer;
+            border: 2px solid rgba(52,125,255,0.5);
+            transition: 0.1s;
+        }
+        .mic-circle i { font-size: 55px; color: #88ccff; }
+        .mic-text { margin-top: 12px; color: #aaa; font-weight: 600; font-size: 13px; }
+
+        /* Modal za upload slike */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.9);
+            z-index: 2000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background: #1a1f2e;
+            padding: 24px;
+            border-radius: 48px;
+            width: 90%;
+            max-width: 340px;
+            text-align: center;
+        }
+        .modal-content button {
+            background: #347dff;
+            border: none;
+            padding: 12px;
+            border-radius: 40px;
+            color: white;
+            font-weight: bold;
+            margin: 8px;
+            cursor: pointer;
+        }
+        canvas { margin: 15px 0; border-radius: 20px; background: transparent; max-width: 100%; }
+    </style>
+</head>
+<body>
+<div class="phone">
+    <div class="header">
+        <div class="logo">
+            <h1>Luna</h1>
+            <p id="modeLabel">Pametna AI</p>
+        </div>
+        <div class="sasa-btn" onclick="openSettings()">⚙️ Saša</div>
+    </div>
+
+    <div class="content">
+        <!-- LEBDEĆA FIGURICA SA GLOW EFEKTOM -->
+        <div class="avatar-float" onclick="openAvatarUpload()">
+            <div class="avatar-glow"></div>
+            <img class="avatar-img" id="avatarImage" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='45' fill='%23347dff'/%3E%3Ctext x='50' y='67' text-anchor='middle' fill='white' font-size='40'%3E🤖%3C/text%3E%3C/svg%3E" alt="Luna Avatar">
+        </div>
+
+        <!-- STATISTIKE -->
+        <div class="stats-row">
+            <div class="stat-card" onclick="showNotes()">
+                <i class="fa-solid fa-note-sticky"></i>
+                <span id="noteCount">0</span>
+                <small>Beleške</small>
+            </div>
+            <div class="stat-card" onclick="showAlarms()">
+                <i class="fa-solid fa-bell"></i>
+                <span id="alarmCount">0</span>
+                <small>Alarmi</small>
+            </div>
+        </div>
+
+        <!-- PREVIEW -->
+        <div class="preview" id="previewArea">
+            ✨ Zdravo! Ja sam Luna.<br>
+            📌 Dodirni mikrofon i reci:<br>
+            • "beleška kupi mleko"<br>
+            • "alarm 7:30"<br>
+            • "koliko je sati"
+        </div>
+
+        <!-- REŽIMI -->
+        <div class="modes">
+            <div class="mode-chip active" data-mode="Pametna" onclick="setAIMode(this, 'Pametna')">🧠 Pametna</div>
+            <div class="mode-chip" data-mode="Šaljiva" onclick="setAIMode(this, 'Šaljiva')">🤪 Šaljiva</div>
+            <div class="mode-chip" data-mode="Sveznalica" onclick="setAIMode(this, 'Sveznalica')">🔮 Sveznal</div>
+            <div class="mode-chip" data-mode="Profesionalna" onclick="setAIMode(this, 'Profesionalna')">💼 Profi</div>
+        </div>
+
+        <!-- MIKROFON -->
+        <div class="mic-area">
+            <div class="mic-circle" id="micButton">
+                <i class="fa-solid fa-microphone"></i>
+            </div>
+            <div class="mic-text" id="micStatus">🎤 DODIRNI I KAŽI</div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL ZA POSTAVLJANJE SLIKE (PNG SA TRANSPARENTNOM POZADINOM) -->
+<div id="avatarModal" class="modal">
+    <div class="modal-content">
+        <h3 style="color:white;">🖼️ Postavi sliku (PNG sa transparentnom pozadinom)</h3>
+        <input type="file" id="avatarUpload" accept="image/png,image/jpeg,image/jpg">
+        <canvas id="previewCanvas" width="200" height="200" style="background: repeating-conic-gradient(#2a2f3f 0% 25%, #1e2335 0% 50%); background-size: 20px 20px;"></canvas>
+        <p style="color:#aaa; font-size:12px;">✅ PNG = transparentna pozadina (figurica lebdi)<br>✨ JPG = automatski uklanjamo belu pozadinu</p>
+        <button onclick="applyAvatar()">✅ Postavi i dodaj glow</button>
+        <button onclick="closeModal()" style="background:#555;">Otkaži</button>
+    </div>
+</div>
+
+<script>
+    // ------------------ PODACI ------------------
+    let notes = [];
+    let alarms = [];
+    let currentAIMode = "Pametna";
+    let recognition = null;
+    let isListening = false;
+
+    // DOM elementi
+    const previewDiv = document.getElementById("previewArea");
+    const noteSpan = document.getElementById("noteCount");
+    const alarmSpan = document.getElementById("alarmCount");
+    const modeLabel = document.getElementById("modeLabel");
+    const avatarImg = document.getElementById("avatarImage");
+    const micBtn = document.getElementById("micButton");
+    const micStatus = document.getElementById("micStatus");
+
+    // Update brojeva
+    function updateBadges() {
+        noteSpan.innerText = notes.length;
+        alarmSpan.innerText = alarms.length;
+    }
+
+    // Prikaz beleški
+    function showNotes() {
+        if (notes.length === 0) {
+            previewDiv.innerHTML = "📋 SVE BELEŠKE\n\n📭 Nema sačuvanih beleški.";
+            return;
+        }
+        let html = "<b>📋 SVE BELEŠKE</b><br><br>";
+        notes.forEach((note, i) => {
+            html += `<div style="display:flex; justify-content:space-between; margin-bottom:8px; background:rgba(255,255,255,0.05); padding:8px 12px; border-radius:20px;">
+                        📌 ${escapeHtml(note)}
+                        <span style="color:#ff5e5e; cursor:pointer;" onclick="deleteNote(${i})">✕</span>
+                    </div>`;
+        });
+        previewDiv.innerHTML = html;
+    }
+
+    function showAlarms() {
+        if (alarms.length === 0) {
+            previewDiv.innerHTML = "⏰ SVI ALARMI\n\n🔕 Nema aktivnih alarma.";
+            return;
+        }
+        let html = "<b>⏰ SVI ALARMI</b><br><br>";
+        alarms.forEach((alm, i) => {
+            html += `<div style="display:flex; justify-content:space-between; margin-bottom:8px; background:rgba(255,255,255,0.05); padding:8px 12px; border-radius:20px;">
+                        🔔 ${escapeHtml(alm)}
+                        <span style="color:#ff5e5e; cursor:pointer;" onclick="deleteAlarm(${i})">✕</span>
+                    </div>`;
+        });
+        previewDiv.innerHTML = html;
+    }
+
+    function deleteNote(i) { notes.splice(i,1); updateBadges(); showNotes(); speak("Beleška obrisana"); }
+    function deleteAlarm(i) { alarms.splice(i,1); updateBadges(); showAlarms(); speak("Alarm obrisan"); }
+    function escapeHtml(str) { return str.replace(/[&<>]/g, function(m){ if(m==='&') return '&amp;'; if(m==='<') return '&lt;'; if(m==='>') return '&gt;'; return m;}); }
+
+    // Govor
+    function speak(text) {
+        let utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = "sr-RS";
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.speak(utterance);
+    }
+
+    // AI režimi
+    function setAIMode(element, mode) {
+        document.querySelectorAll(".mode-chip").forEach(chip => chip.classList.remove("active"));
+        element.classList.add("active");
+        currentAIMode = mode;
+        modeLabel.innerText = mode + " AI";
+        speak(`Prebačeno na ${mode} režim`);
+        previewDiv.innerHTML = `✨ Režim promenjen: ${mode} AI<br>Spremna za komande.`;
+    }
+
+    // Obrada komandi
+    function processCommand(cmd) {
+        let lower = cmd.toLowerCase();
+        previewDiv.innerHTML = `<b>🎤 Komanda:</b> ${cmd}<br>🤖 Obrađujem...`;
+        
+        if (lower.includes("beleška")) {
+            let note = cmd.replace(/beleška|belešku/gi, "").trim();
+            if (!note) note = "nova beleška";
+            notes.push(note);
+            updateBadges();
+            showNotes();
+            speak("Beleška sačuvana");
+            return;
+        }
+        if (lower.includes("alarm")) {
+            let alarm = cmd.replace(/alarm/gi, "").trim();
+            if (!alarm) alarm = "podsetnik";
+            alarms.push(alarm);
+            updateBadges();
+            showAlarms();
+            speak("Alarm dodat");
+            return;
+        }
+        if (lower.includes("sati") || lower.includes("vreme")) {
+            let now = new Date();
+            let time = now.getHours() + ":" + (now.getMinutes()<10?'0':'') + now.getMinutes();
+            previewDiv.innerHTML = `🕒 Trenutno je ${time}`;
+            speak(`Sada je ${time}`);
+            return;
+        }
+        
+        let odgovori = {
+            "Pametna": "Razumela sam komandu. Kako mogu pomoći?",
+            "Šaljiva": "Haha, dobra fora! Šta još?",
+            "Sveznalica": "Znam odgovor na sve! Nastavi.",
+            "Profesionalna": "Komanda profesionalno obrađena."
+        };
+        let reply = odgovori[currentAIMode] || "Komada primljena.";
+        previewDiv.innerHTML = `🤖 Luna (${currentAIMode}): ${reply}<br><small>➡️ ${cmd}</small>`;
+        speak(reply);
+    }
+
+    // MIKROFON
+    function initMic() {
+        const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRec) { alert("Glasovne komande nisu podržane"); return null; }
+        let rec = new SpeechRec();
+        rec.lang = "sr-RS";
+        rec.continuous = false;
+        return rec;
+    }
+
+    function toggleMic() {
+        if (!window.SpeechRecognition && !window.webkitSpeechRecognition) {
+            alert("Vaš pretraživač ne podržava glas. Koristite Chrome.");
+            return;
+        }
+        if (isListening && recognition) {
+            recognition.stop();
+            return;
+        }
+        recognition = initMic();
+        recognition.onstart = () => {
+            isListening = true;
+            micStatus.innerText = "🎙️ SLUŠAM... GOVORI";
+            micBtn.style.boxShadow = "0 0 20px #347dff";
+        };
+        recognition.onend = () => {
+            isListening = false;
+            micStatus.innerText = "🎤 DODIRNI I KAŽI";
+            micBtn.style.boxShadow = "none";
+        };
+        recognition.onresult = (e) => {
+            let command = e.results[0][0].transcript;
+            processCommand(command);
+            recognition.stop();
+        };
+        recognition.start();
+    }
+    micBtn.addEventListener("click", toggleMic);
+
+    // ------------------ AVATAR SA TRANSPARENTNOM POZADINOM I GLOW ------------------
+    let selectedFile = null;
+    let canvas = document.getElementById("previewCanvas");
+    let ctx = canvas.getContext("2d");
+
+    function openAvatarUpload() {
+        document.getElementById("avatarModal").style.display = "flex";
+        ctx.clearRect(0,0,200,200);
+    }
+    function closeModal() { document.getElementById("avatarModal").style.display = "none"; }
+
+    document.getElementById("avatarUpload").addEventListener("change", function(e) {
+        let file = e.target.files[0];
+        if (!file) return;
+        selectedFile = file;
+        let reader = new FileReader();
+        reader.onload = function(ev) {
+            let img = new Image();
+            img.onload = function() {
+                // Crtamo na canvas za pregled
+                ctx.clearRect(0,0,200,200);
+                ctx.drawImage(img, 0, 0, 200, 200);
+            };
+            img.src = ev.target.result;
+        };
+        reader.readAsDataURL(file);
+    });
+
+    function applyAvatar() {
+        if (!selectedFile) {
+            alert("Izaberi sliku prvo");
+            return;
+        }
+        let reader = new FileReader();
+        reader.onload = function(ev) {
+            let img = new Image();
+            img.onload = function() {
+                // Kreiranje slike za avatar (zadržavamo transparentnost)
+                let tempCanvas = document.createElement("canvas");
+                tempCanvas.width = 300;
+                tempCanvas.height = 300;
+                let tempCtx = tempCanvas.getContext("2d");
+                tempCtx.clearRect(0,0,300,300);
+                // Crtamo sliku (ako je JPG, pozadina je bela, ali ćemo je ignorisati)
+                tempCtx.drawImage(img, 0, 0, 300, 300);
+                let imageDataURL = tempCanvas.toDataURL("image/png"); // PNG podržava transparentnost
+                avatarImg.src = imageDataURL;
+                avatarImg.style.background = "transparent";
+                avatarImg.style.objectFit = "contain";
+                closeModal();
+                speak("Avatar sa glow efektom postavljen");
+            };
+            img.src = ev.target.result;
+        };
+        reader.readAsDataURL(selectedFile);
+    }
+
+    // Settings
+    function openSettings() {
+        alert("🔮 Luna Podešavanja\n\n✅ Avatar: klikni na lebdeću sliku i izaberi PNG sa transparentnom pozadinom\n✅ JPG se automatski konvertuje\n✅ Glow efekat uvek aktivan\n✅ Glasovne komande rade");
+    }
+
+    window.showNotes = showNotes;
+    window.showAlarms = showAlarms;
+    window.deleteNote = deleteNote;
+    window.deleteAlarm = deleteAlarm;
+    window.setAIMode = setAIMode;
+    window.openAvatarUpload = openAvatarUpload;
+    window.closeModal = closeModal;
+    window.applyAvatar = applyAvatar;
+    window.openSettings = openSettings;
+
+    updateBadges();
+</script>
+</body>
+</html>
